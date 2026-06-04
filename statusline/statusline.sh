@@ -135,9 +135,9 @@ if [ -n "$duration_ms" ]; then
   hours=$((total_sec / 3600))
   mins=$(( (total_sec % 3600) / 60 ))
   if [ "$hours" -gt 0 ]; then
-    duration_display="${hours}h${mins}m"
+    duration_display="⏱${hours}h${mins}m"
   else
-    duration_display="${mins}m"
+    duration_display="⏱${mins}m"
   fi
 fi
 
