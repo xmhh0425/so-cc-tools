@@ -130,6 +130,7 @@ fi
 if [ -n "$pct" ]; then
   pct_int=$(printf '%.0f' "$pct")
   filled=$(( pct_int * 20 / 100 ))
+  [ "$filled" -eq 0 ] && [ "$pct_int" -gt 0 ] && filled=1
   empty=$(( 20 - filled ))
 
   if [ "$pct_int" -ge 85 ]; then
