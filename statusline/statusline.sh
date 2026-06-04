@@ -19,6 +19,7 @@ C_BLUE=$'\033[34m'
 C_MAGENTA=$'\033[35m'
 C_WHITE=$'\033[37m'
 C_GRAY=$'\033[90m'
+C_BOLD_WHITE=$'\033[1;37m'
 C_RESET=$'\033[0m'
 
 input=$(cat)
@@ -125,6 +126,21 @@ if [ "$latest_skills" = "${C_WHITE}-${C_RESET}" ] && [ -f "$SKILLS_LOG" ]; then
 fi
 [ -n "$latest_skills" ] || latest_skills="${C_WHITE}-${C_RESET}"
 
+# === Session duration ===
+
+duration_ms=$(echo "$input" | jq -r '.cost.total_duration_ms // empty')
+duration_display=""
+if [ -n "$duration_ms" ]; then
+  total_sec=$((duration_ms / 1000))
+  hours=$((total_sec / 3600))
+  mins=$(( (total_sec % 3600) / 60 ))
+  if [ "$hours" -gt 0 ]; then
+    duration_display="${hours}h${mins}m"
+  else
+    duration_display="${mins}m"
+  fi
+fi
+
 # === Context progress bar ===
 
 if [ -n "$pct" ]; then
@@ -154,14 +170,15 @@ fi
 
 # Build model display with effort level
 if [ -n "$effort" ]; then
-  model_display="${model} ${C_MAGENTA}[${effort}]${C_RESET}"
+  model_display="${C_BOLD_WHITE}${model}${C_RESET} ${C_MAGENTA}[${effort}]${C_RESET}"
 else
-  model_display="${model}"
+  model_display="${C_BOLD_WHITE}${model}${C_RESET}"
 fi
 
 # Multi-line output
-printf "%sModel:%s %s | %sContext:%s %s\n%sLatest:%s %s\n%sSkills:%s %s" \
+printf "%sModel:%s %s | %sContext:%s %s%s\n%sLatest:%s %s\n%sSkills:%s %s" \
   "$C_CYAN" "$C_RESET" "$model_display" \
   "$C_CYAN" "$C_RESET" "$ctx" \
+  "${duration_display:+ ${C_GRAY}${duration_display}${C_RESET}}" \
   "$C_YELLOW" "$C_RESET" "$latest_skills" \
   "$C_WHITE" "$C_RESET" "$all_skills"
