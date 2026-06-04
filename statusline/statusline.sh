@@ -10,17 +10,24 @@ SKILLS_LOG="/tmp/cc-skills.log"
 MERGE_FILE=$(mktemp /tmp/cc-skills-merge.XXXXXX)
 trap 'rm -f "$MERGE_FILE"' EXIT
 
-# Colors
+# Colors - shared across dark/light themes
 C_CYAN=$'\033[36m'
 C_GREEN=$'\033[32m'
 C_YELLOW=$'\033[33m'
 C_RED=$'\033[31m'
 C_BLUE=$'\033[34m'
 C_MAGENTA=$'\033[35m'
-C_WHITE=$'\033[37m'
-C_GRAY=$'\033[90m'
-C_BOLD_WHITE=$'\033[1;37m'
 C_RESET=$'\033[0m'
+
+# Detect system appearance and set theme-dependent colors
+if defaults read -g AppleInterfaceStyle 2>/dev/null | grep -qi "Dark"; then
+  C_MODEL=$'\033[1;37m'    # bold bright white - model name
+  C_GRAY=$'\033[90m'       # dark gray - progress bar empty, placeholders
+else
+  C_MODEL=$'\033[1;30m'    # bold black - model name
+  C_GRAY=$'\033[37m'       # light gray - progress bar empty, placeholders
+fi
+C_WHITE=$'\033[37m'
 
 input=$(cat)
 
@@ -170,9 +177,9 @@ fi
 
 # Build model display with effort level
 if [ -n "$effort" ]; then
-  model_display="${C_BOLD_WHITE}${model}${C_RESET} ${C_MAGENTA}[${effort}]${C_RESET}"
+  model_display="${C_MODEL}${model}${C_RESET} ${C_MAGENTA}[${effort}]${C_RESET}"
 else
-  model_display="${C_BOLD_WHITE}${model}${C_RESET}"
+  model_display="${C_MODEL}${model}${C_RESET}"
 fi
 
 # Multi-line output
