@@ -16,7 +16,7 @@ Claude 完成任务或需要确认时，发送系统通知提醒。
 多行彩色状态栏，显示模型信息、上下文用量、Skill 调用历史。
 
 ```
-Model: Sonnet 4.6 | Context: ██████░░░░░░░░░░░░░░ 32%
+Model: Sonnet 4.6 [high] | Context: ████████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ 21% 1h15m
 Latest: C:chrome-connect
 Skills: C:deep-research > U:brainstorming > C:chrome-connect
 ```
