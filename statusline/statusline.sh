@@ -109,7 +109,7 @@ if [ -n "$transcript" ] && [ -f "$transcript" ]; then
     total_lines=$(wc -l < "$transcript")
 
     if [ "$last_user_line" -lt "$total_lines" ]; then
-      latest_skills=$(tail -n +"$((last_user_line + 1))" "$transcript" 2>/dev/null \
+      _tmp=$(tail -n +"$((last_user_line + 1))" "$transcript" 2>/dev/null \
         | jq -r '
             select(.type == "assistant")
             | .message.content[]?
@@ -120,6 +120,9 @@ if [ -n "$transcript" ] && [ -f "$transcript" ]; then
         | awk -v blue="$C_BLUE" -v dim="$C_WHITE" -v reset="$C_RESET" \
           'NR==1{printf "%sC:%s%s",blue,$0,reset}
            NR>1{printf " %s>%s %sC:%s%s",dim,reset,blue,$0,reset}' 2>/dev/null || true)
+      if [ -n "$_tmp" ]; then
+        latest_skills="$_tmp"
+      fi
     fi
   fi
 fi
