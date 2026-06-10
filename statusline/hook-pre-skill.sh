@@ -9,8 +9,9 @@ MAX_LINES=50
 
 input=$(cat)
 
-# Extract skill name from message - handles /command and /command args
-message=$(echo "$input" | jq -r '.message // empty' 2>/dev/null || true)
+# Extract skill name from prompt - handles /command and /command args
+# Note: UserPromptSubmit stdin uses "prompt" field, not "message"
+message=$(echo "$input" | jq -r '.prompt // .message // empty' 2>/dev/null || true)
 
 if [[ "$message" =~ ^/([a-zA-Z0-9_-]+) ]]; then
   skill="${BASH_REMATCH[1]}"

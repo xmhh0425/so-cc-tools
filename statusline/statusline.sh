@@ -103,7 +103,7 @@ fi
 latest_skills="${C_WHITE}-${C_RESET}"
 
 if [ -n "$transcript" ] && [ -f "$transcript" ]; then
-  last_user_line=$(grep -n '"type":"user"' "$transcript" 2>/dev/null | tail -1 | cut -d: -f1)
+  last_user_line=$(grep -n '"type":"user"' "$transcript" 2>/dev/null | tail -1 | cut -d: -f1 || true)
 
   if [ -n "$last_user_line" ]; then
     total_lines=$(wc -l < "$transcript")
