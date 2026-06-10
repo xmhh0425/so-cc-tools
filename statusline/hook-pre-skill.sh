@@ -1,17 +1,25 @@
 #!/bin/bash
-# PreToolUse Hook - Track Claude-initiated Skill invocations.
-# Fires ONLY when Claude calls the Skill tool (not user-typed /slash).
-# Reads JSON from stdin, extracts skill name, appends to log.
+# UserPromptSubmit Hook - Track user-typed /slash skill invocations.
+# Fires when the user submits a prompt.
+# If the message starts with /, extracts the skill name and logs it.
+# Reads JSON from stdin; skill name is in .message (e.g. "/statusline-setup").
 
 LOG_FILE="/tmp/cc-skills.log"
 MAX_LINES=50
 
 input=$(cat)
 
-# Extract skill name from tool_input
-skill=$(echo "$input" | jq -r '.tool_input.skill // empty' 2>/dev/null || true)
+# Extract skill name from message - handles /command and /command args
+message=$(echo "$input" | jq -r '.message // empty' 2>/dev/null || true)
 
-if [ -n "$skill" ]; then
+if [[ "$message" =~ ^/([a-zA-Z0-9_-]+) ]]; then
+  skill="${BASH_REMATCH[1]}"
+
+  # Avoid duplicates: only log if not the same as the last entry
+  if [ -f "$LOG_FILE" ] && [ "$(tail -1 "$LOG_FILE" 2>/dev/null)" = "$skill" ]; then
+    exit 0
+  fi
+
   echo "$skill" >> "$LOG_FILE"
 
   # Trim log
