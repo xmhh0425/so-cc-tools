@@ -39,8 +39,8 @@ send_macos_notification() {
         -group "$NOTIFY_GROUP" \
         2>/dev/null
 
-    # 60 秒后自动移除（setsid 脱离进程树，不阻塞 hook）
-    setsid nohup bash -c "sleep 60 && terminal-notifier -remove '$NOTIFY_GROUP' 2>/dev/null" </dev/null >/dev/null 2>&1 &
+    # 60 秒后自动移除（nohup 脱离 hook 进程树，setsid 在 macOS 不存在）
+    nohup bash -c "sleep 60 && /opt/homebrew/bin/terminal-notifier -remove '$NOTIFY_GROUP'" </dev/null >/dev/null 2>&1 &
 
     echo "$(date '+%Y-%m-%d %H:%M:%S') macOS notification sent: $TITLE - $MSG" >> "$LOG_FILE"
 }
