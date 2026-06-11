@@ -31,18 +31,17 @@ send_macos_notification() {
     local SUBTITLE="$2"
     local MSG="$3"
 
-    # 发送通知（使用 Claude app icon）
     terminal-notifier \
         -title "$TITLE" \
         -subtitle "$SUBTITLE" \
         -message "$MSG" \
         -sound "Glass" \
         -group "$NOTIFY_GROUP" \
-        -sender "com.claude.notifier" \
         2>/dev/null
 
     # 60 秒后自动移除
     (sleep 60 && terminal-notifier -remove "$NOTIFY_GROUP" 2>/dev/null) &
+    disown
 
     echo "$(date '+%Y-%m-%d %H:%M:%S') macOS notification sent: $TITLE - $MSG" >> "$LOG_FILE"
 }
