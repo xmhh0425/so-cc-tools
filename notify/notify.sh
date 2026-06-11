@@ -23,25 +23,19 @@ NTFY_URL="${NTFY_URL:-https://ntfy.sh}"
 TYPE="${1:-done}"
 MESSAGE="${2:-}"
 
-# macOS 原生通知（60 秒后自动消失）
+# macOS 原生通知（60 秒后自动消失，Claude logo）
 NOTIFY_GROUP="claude-code-notify"
-NOTIFY_ICON="$SCRIPT_DIR/claude-logo.png"
+NOTIFIER_APP="$SCRIPT_DIR/claude-notifier.app/Contents/MacOS/claude-notifier"
 send_macos_notification() {
     local TITLE="$1"
     local SUBTITLE="$2"
     local MSG="$3"
 
-    terminal-notifier \
-        -title "$TITLE" \
-        -subtitle "$SUBTITLE" \
-        -message "$MSG" \
-        -sound "Glass" \
-        -group "$NOTIFY_GROUP" \
-        2>/dev/null
+    # 使用自定义 app 发送（带 Claude logo）
+    "$NOTIFIER_APP" "$SUBTITLE" "$MSG" 2>/dev/null
 
-    # 60 秒后自动移除
-    (sleep 60 && terminal-notifier -remove "$NOTIFY_GROUP" 2>/dev/null) &
-    disown
+    # 60 秒后自动移除（setsid 脱离进程树，不阻塞 hook）
+    setsid nohup bash -c "sleep 60 && terminal-notifier -remove '$NOTIFY_GROUP' 2>/dev/null" </dev/null >/dev/null 2>&1 &
 
     echo "$(date '+%Y-%m-%d %H:%M:%S') macOS notification sent: $TITLE - $MSG" >> "$LOG_FILE"
 }
