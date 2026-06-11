@@ -23,15 +23,26 @@ NTFY_URL="${NTFY_URL:-https://ntfy.sh}"
 TYPE="${1:-done}"
 MESSAGE="${2:-}"
 
-# macOS 原生通知
+# macOS 原生通知（60 秒后自动消失）
+NOTIFY_GROUP="claude-code-notify"
+NOTIFY_ICON="$SCRIPT_DIR/claude-logo.png"
 send_macos_notification() {
     local TITLE="$1"
     local SUBTITLE="$2"
     local MSG="$3"
 
-    osascript -e "
-    display notification \"$MSG\" with title \"$TITLE\" subtitle \"$SUBTITLE\" sound name \"Glass\"
-    " 2>/dev/null
+    # 发送通知（使用 Claude app icon）
+    terminal-notifier \
+        -title "$TITLE" \
+        -subtitle "$SUBTITLE" \
+        -message "$MSG" \
+        -sound "Glass" \
+        -group "$NOTIFY_GROUP" \
+        -sender "com.claude.notifier" \
+        2>/dev/null
+
+    # 60 秒后自动移除
+    (sleep 60 && terminal-notifier -remove "$NOTIFY_GROUP" 2>/dev/null) &
 
     echo "$(date '+%Y-%m-%d %H:%M:%S') macOS notification sent: $TITLE - $MSG" >> "$LOG_FILE"
 }
