@@ -3,10 +3,12 @@
 # Line 1: Model | Context progress (colored by usage)
 # Line 2: Latest turn skills
 # Line 3: All skills in session
+#
+# Skills are parsed from the transcript (session-specific JSONL).
+# No shared log file — each session shows only its own skills.
 
 set -euo pipefail
 
-SKILLS_LOG="/tmp/cc-skills.log"
 MERGE_FILE=$(mktemp /tmp/cc-skills-merge.XXXXXX)
 trap 'rm -f "$MERGE_FILE"' EXIT
 
@@ -69,34 +71,29 @@ if [ -n "$transcript" ] && [ ! -f "$transcript" ]; then
   fi
 fi
 
-# === All skills in session ===
-
-if [ -n "$transcript" ] && [ -f "$transcript" ]; then
+# Helper: extract all unique Skill tool_use names from a JSONL stream
+_extract_skills() {
   jq -r '
     select(.type == "assistant")
     | .message.content[]?
     | select(.type == "tool_use" and .name == "Skill")
     | .input.skill // empty
-  ' "$transcript" 2>/dev/null \
-    | awk '!seen[$0]++{printf "C:%s\n",$0}' > "$MERGE_FILE" 2>/dev/null || true
-fi
+  ' 2>/dev/null | awk '!seen[$0]++'
+}
 
-if [ -f "$SKILLS_LOG" ]; then
-  tail -20 "$SKILLS_LOG" 2>/dev/null \
-    | awk '!seen[$0]++{printf "U:%s\n",$0}' >> "$MERGE_FILE" 2>/dev/null || true
-fi
+# === All skills in session ===
 
-# Format all skills with colors
-all_skills=""
-if [ -s "$MERGE_FILE" ]; then
-  all_skills=$(awk -v blue="$C_BLUE" -v mag="$C_MAGENTA" -v dim="$C_WHITE" -v reset="$C_RESET" '
-    NR > 1 { printf " %s>%s ", dim, reset }
-    {
-      if ($1 == "C") printf "%s%s%s", blue, $0, reset
-      else printf "%s%s%s", mag, $0, reset
-    }' "$MERGE_FILE" 2>/dev/null || true)
+all_skills="${C_WHITE}-${C_RESET}"
+
+if [ -n "$transcript" ] && [ -f "$transcript" ]; then
+  _tmp=$(_extract_skills < "$transcript" 2>/dev/null || true)
+  if [ -n "$_tmp" ]; then
+    all_skills=$(echo "$_tmp" \
+      | awk -v blue="$C_BLUE" -v dim="$C_WHITE" -v reset="$C_RESET" \
+        'NR==1{printf "%s%s%s",blue,$0,reset}
+         NR>1{printf " %s>%s %s%s%s",dim,reset,blue,$0,reset}' 2>/dev/null || true)
+  fi
 fi
-[ -n "$all_skills" ] || all_skills="${C_WHITE}-${C_RESET}"
 
 # === Latest turn skills ===
 
@@ -108,32 +105,32 @@ if [ -n "$transcript" ] && [ -f "$transcript" ]; then
   if [ -n "$last_user_line" ]; then
     total_lines=$(wc -l < "$transcript")
 
+    # Search after the last user message (current turn)
     if [ "$last_user_line" -lt "$total_lines" ]; then
       _tmp=$(tail -n +"$((last_user_line + 1))" "$transcript" 2>/dev/null \
-        | jq -r '
-            select(.type == "assistant")
-            | .message.content[]?
-            | select(.type == "tool_use" and .name == "Skill")
-            | .input.skill // empty
-          ' 2>/dev/null \
-        | awk '!seen[$0]++' \
-        | awk -v blue="$C_BLUE" -v dim="$C_WHITE" -v reset="$C_RESET" \
-          'NR==1{printf "%sC:%s%s",blue,$0,reset}
-           NR>1{printf " %s>%s %sC:%s%s",dim,reset,blue,$0,reset}' 2>/dev/null || true)
+        | _extract_skills 2>/dev/null || true)
       if [ -n "$_tmp" ]; then
-        latest_skills="$_tmp"
+        latest_skills=$(echo "$_tmp" \
+          | awk -v blue="$C_BLUE" -v dim="$C_WHITE" -v reset="$C_RESET" \
+            'NR==1{printf "%sC:%s%s",blue,$0,reset}
+             NR>1{printf " %s>%s %sC:%s%s",dim,reset,blue,$0,reset}' 2>/dev/null || true)
+      fi
+    fi
+
+    # Fallback: if no Skill in current turn, find the most recent Skill in entire transcript
+    if [ "$latest_skills" = "${C_WHITE}-${C_RESET}" ]; then
+      _tmp=$(_extract_skills < "$transcript" 2>/dev/null \
+        | tail -3 2>/dev/null || true)
+      if [ -n "$_tmp" ]; then
+        latest_skills=$(echo "$_tmp" \
+          | awk -v blue="$C_BLUE" -v dim="$C_WHITE" -v reset="$C_RESET" \
+            'NR==1{printf "%sC:%s%s",blue,$0,reset}
+             NR>1{printf " %s>%s %sC:%s%s",dim,reset,blue,$0,reset}' 2>/dev/null || true)
       fi
     fi
   fi
 fi
 
-if [ "$latest_skills" = "${C_WHITE}-${C_RESET}" ] && [ -f "$SKILLS_LOG" ]; then
-  latest_skills=$(tail -5 "$SKILLS_LOG" 2>/dev/null \
-    | awk '!seen[$0]++' \
-    | awk -v mag="$C_MAGENTA" -v dim="$C_WHITE" -v reset="$C_RESET" \
-      'NR==1{printf "%sU:%s%s",mag,$0,reset}
-       NR>1{printf " %s>%s %sU:%s%s",dim,reset,mag,$0,reset}' 2>/dev/null || true)
-fi
 [ -n "$latest_skills" ] || latest_skills="${C_WHITE}-${C_RESET}"
 
 # === Session duration ===
