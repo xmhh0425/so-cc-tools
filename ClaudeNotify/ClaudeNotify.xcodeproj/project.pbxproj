@@ -28,6 +28,7 @@
 		A10000000000000000000013 /* NotificationStackViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000014 /* NotificationStackViewModel.swift */; };
 		A10000000000000000000014 /* NotificationStackView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000015 /* NotificationStackView.swift */; };
 		A10000000000000000000015 /* TranscriptReader.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000016 /* TranscriptReader.swift */; };
+		A10000000000000000000016 /* PassThroughWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000017 /* PassThroughWindow.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -54,6 +55,7 @@
 		A20000000000000000000014 /* NotificationStackViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationStackViewModel.swift; sourceTree = "<group>"; };
 		A20000000000000000000015 /* NotificationStackView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationStackView.swift; sourceTree = "<group>"; };
 		A20000000000000000000016 /* TranscriptReader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranscriptReader.swift; sourceTree = "<group>"; };
+		A20000000000000000000017 /* PassThroughWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PassThroughWindow.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXResourcesBuildPhase section */
@@ -112,6 +114,7 @@
 				A20000000000000000000014 /* NotificationStackViewModel.swift */,
 				A20000000000000000000015 /* NotificationStackView.swift */,
 				A20000000000000000000016 /* TranscriptReader.swift */,
+				A20000000000000000000017 /* PassThroughWindow.swift */,
 			);
 			path = ClaudeNotify;
 			sourceTree = "<group>";
@@ -196,6 +199,7 @@
 				A10000000000000000000013 /* NotificationStackViewModel.swift in Sources */,
 				A10000000000000000000014 /* NotificationStackView.swift in Sources */,
 				A10000000000000000000015 /* TranscriptReader.swift in Sources */,
+				A10000000000000000000016 /* PassThroughWindow.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
