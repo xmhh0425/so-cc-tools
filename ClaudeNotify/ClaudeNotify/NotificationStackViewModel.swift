@@ -18,19 +18,34 @@ final class NotificationStackViewModel {
     }
 
     /// Call only from the main thread.
-    func addNotification(_ vm: FloatingNotificationViewModel, duration: TimeInterval) {
+    func addNotification(
+        _ vm: FloatingNotificationViewModel,
+        duration: TimeInterval,
+        onTimeout: ((FloatingNotificationViewModel.ID) -> Void)? = nil
+    ) {
         notifications.insert(vm, at: 0)
+        let id = vm.id
 
         Task { [weak self] in
             try? await Task.sleep(for: .seconds(duration))
-            self?.dismiss(vm)
+            if let onTimeout {
+                DispatchQueue.main.async {
+                    onTimeout(id)
+                }
+            } else {
+                self?.dismiss(id: id)
+            }
         }
     }
 
     func dismiss(_ vm: FloatingNotificationViewModel) {
+        dismiss(id: vm.id)
+    }
+
+    func dismiss(id: FloatingNotificationViewModel.ID) {
         DispatchQueue.main.async { [weak self] in
             guard let self else { return }
-            self.notifications.removeAll { $0.id == vm.id }
+            self.notifications.removeAll { $0.id == id }
             if self.notifications.isEmpty {
                 self.onEmptyRef?.handler?()
             }
