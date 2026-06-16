@@ -56,7 +56,7 @@ struct MenuBarView: View {
             Image(systemName: "bell.fill")
                 .font(.system(size: 12, weight: .semibold))
                 .foregroundStyle(.blue)
-            Text("ClaudeNotify")
+            Text("CC Tools")
                 .font(.system(size: 13, weight: .semibold))
             Spacer()
             Text("v1.0")
@@ -115,6 +115,9 @@ struct MenuBarView: View {
 
     private var actionSection: some View {
         VStack(spacing: 0) {
+            actionRow(icon: "gearshape.2", title: "管理") {
+                coordinator.managementWindow.showWindow()
+            }
             actionRow(icon: "wrench.and.screwdriver", title: "配置 Hook") {
                 panelState.page = .setup
             }

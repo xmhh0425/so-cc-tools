@@ -9,6 +9,7 @@ final class AppCoordinator {
     let notifications: NotificationManager
     let floatingNotifications: FloatingNotificationManager
     let server: HTTPServer
+    let managementWindow: ManagementWindowController
 
     init() {
         let s = SettingsStore()
@@ -23,9 +24,13 @@ final class AppCoordinator {
         self.notifications = n
         self.floatingNotifications = fn
         self.server = srv
+        self.managementWindow = ManagementWindowController(coordinator: nil)
 
         setupCallbacks()
         startServer()
+
+        // Wire up the management window controller
+        managementWindow.setCoordinator(self)
 
         // The app is configured as an LSUIElement in Info.plist, so the menu
         // bar extra is created with the correct activation policy from launch.
@@ -145,13 +150,13 @@ final class StatusBarController: NSObject {
         super.init()
 
         if let button = statusItem.button {
-            let image = NSImage(systemSymbolName: "bell.fill", accessibilityDescription: "ClaudeNotify")
+            let image = NSImage(systemSymbolName: "bell.fill", accessibilityDescription: "CC Tools")
                 ?? NSImage(named: "MenuBarIcon")
             image?.isTemplate = true
             image?.size = NSSize(width: 18, height: 18)
             button.image = image
             button.imagePosition = .imageOnly
-            button.toolTip = "ClaudeNotify"
+            button.toolTip = "CC Tools"
             button.target = self
             button.action = #selector(togglePopover(_:))
             button.sendAction(on: [.leftMouseUp, .rightMouseUp])
@@ -236,7 +241,7 @@ final class StatusBarController: NSObject {
     private static func size(for page: MenuPage) -> NSSize {
         switch page {
         case .main:
-            return NSSize(width: panelWidth, height: 292)
+            return NSSize(width: panelWidth, height: 328)
         case .setup, .settings:
             return NSSize(width: panelWidth, height: 500)
         }
@@ -255,7 +260,7 @@ final class MenuPanelState {
     var height: CGFloat {
         switch page {
         case .main:
-            return 292
+            return 328
         case .setup, .settings:
             return 500
         }

@@ -2,15 +2,15 @@
 
 ## 项目概述
 
-Claude Code 实用工具集，三个组件：
+SO CC Tools — Claude Code 实用工具集，三个组件：
 - `notify/` — 桌面通知脚本（OSC 777 / HTTP 桥接）
 - `statusline/` — 多行彩色状态栏脚本
-- `ClaudeNotify/` — macOS 菜单栏通知 app（SwiftUI）
+- `ClaudeNotify/` — macOS 菜单栏 app（SwiftUI），项目内称 "CC Tools"，承载通知、Hook 管理、设置编辑等功能
 
 ## 构建与运行
 
 ```bash
-# ClaudeNotify macOS app — Xcode 构建，零外部依赖，目标 macOS 14.0+
+# CC Tools macOS app — Xcode 构建，零外部依赖，目标 macOS 14.0+
 open ClaudeNotify/ClaudeNotify.xcodeproj
 # ⌘R 运行
 
@@ -21,11 +21,11 @@ open ClaudeNotify/ClaudeNotify.xcodeproj
 
 ## 架构要点
 
-ClaudeNotify 数据流：Claude Code → HTTP POST `localhost:18765` → `HTTPServer`（Network.framework，自实现 HTTP 解析）→ `AppCoordinator` 分发到浮窗通知 / 系统通知 / 历史记录。
+App 数据流：Claude Code → HTTP POST `localhost:18765` → `HTTPServer`（Network.framework，自实现 HTTP 解析）→ `AppCoordinator` 分发到浮窗通知 / 系统通知 / 历史记录。
 
 Hook 事件类型：`Stop`（任务完成）、`Notification`（等待输入）、`StopFailure`（API 错误）。
 
-菜单栏下拉面板是 `NSPanel`（不是 `NSPopover`），通过 `StatusBarController` 管理。
+菜单栏下拉面板是 `NSPanel`（速览模式），独立管理窗口是 `NSWindow`（管理模式），通过 `ManagementWindowController` 管理。
 
 ## 代码风格
 

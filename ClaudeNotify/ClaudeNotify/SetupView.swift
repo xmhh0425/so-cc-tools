@@ -3,7 +3,7 @@ import SwiftUI
 struct SetupPage: View {
     let coordinator: AppCoordinator
     @Binding var page: MenuPage
-    @State private var settingsManager = ClaudeSettingsManager()
+    @State private var settingsManager = SettingsManager()
     @State private var hookStatus: [HookEvent: Bool] = [:]
 
     var body: some View {
@@ -23,7 +23,7 @@ struct SetupPage: View {
                 Spacer()
             }
 
-            Text("ClaudeNotify 需要在 Claude Code 中配置 HTTP Hook 才能接收事件通知。")
+            Text("需要在 Claude Code 中配置 HTTP Hook 才能接收事件通知。")
                 .font(.system(size: 11))
                 .foregroundStyle(.secondary)
 
@@ -92,16 +92,33 @@ struct SetupPage: View {
 
     private func refreshStatus() {
         for event in HookEvent.allCases {
-            hookStatus[event] = settingsManager.isHookInstalled(event: event)
+            hookStatus[event] = settingsManager.isHookInstalled(
+                event: event.rawValue, type: .http, targetContains: "/hook/"
+            )
         }
+    }
+
+    private func makeHookConfig(for event: HookEvent) -> HookConfig {
+        let hookPath: String
+        switch event {
+        case .stop: hookPath = "stop"
+        case .notification: hookPath = "notification"
+        case .stopFailure: hookPath = "stopfailure"
+        }
+        return HookConfig(
+            event: event.rawValue,
+            matcher: "",
+            type: .http,
+            target: "http://127.0.0.1:\(coordinator.settings.port)/hook/\(hookPath)"
+        )
     }
 
     private func toggleHook(event: HookEvent) {
         do {
             if hookStatus[event] == true {
-                try settingsManager.uninstallHook(event: event)
+                try settingsManager.uninstallHook(event: event.rawValue, targetContains: "/hook/")
             } else {
-                try settingsManager.installHook(event: event, port: coordinator.settings.port)
+                try settingsManager.ensureHook(makeHookConfig(for: event))
             }
             refreshStatus()
         } catch {
@@ -112,7 +129,7 @@ struct SetupPage: View {
     private func installAll() {
         for event in HookEvent.allCases {
             if hookStatus[event] != true {
-                try? settingsManager.installHook(event: event, port: coordinator.settings.port)
+                try? settingsManager.ensureHook(makeHookConfig(for: event))
             }
         }
         refreshStatus()
@@ -120,7 +137,7 @@ struct SetupPage: View {
 
     private func uninstallAll() {
         for event in HookEvent.allCases {
-            try? settingsManager.uninstallHook(event: event)
+            try? settingsManager.uninstallHook(event: event.rawValue, targetContains: "/hook/")
         }
         refreshStatus()
     }
