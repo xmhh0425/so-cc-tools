@@ -75,6 +75,22 @@ git clone https://github.com/xmhh0425/claude-tools.git ~/AI/claude-tools
 
 > `hooks` 字段需与现有配置合并，不能覆盖。
 
+## 配置被覆盖时的一键修复
+
+CC Switch 等代理切换工具会重写 `~/.claude/settings.json`，丢弃它不认识的 `statusLine` / `hooks` 字段，导致状态栏和通知失效。此时运行：
+
+```bash
+~/AI/claude-tools/fix-settings.sh
+```
+
+脚本读取当前配置、合并回 `statusLine` 与 `hooks`（通知走 `notify-claude-notify.sh` → ClaudeNotify app），再原子写回。特性：
+
+- **幂等**：可重复执行，按脚本文件名去重，不产生重复 hook
+- **非破坏**：保留其他工具/事件的 hook 与其余字段；写前生成 `.bak` 备份
+- **自定位**：从脚本自身位置推导仓库路径
+
+修复后若当前会话未立即生效，重开一个会话即可。
+
 ## 依赖
 
 - bash、jq（必需）
