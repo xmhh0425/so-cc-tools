@@ -43,7 +43,7 @@ final class FloatingNotificationManager {
             for screen in NSScreen.screens {
                 guard let id = screen.displayID else { continue }
                 if let entry = self.stacks[id] {
-                    entry.viewModel.addNotification(vm, duration: duration)
+                    self.addNotification(vm, duration: duration, to: entry.viewModel)
                 } else {
                     self.createWindow(for: screen, id: id, initial: vm, duration: duration)
                 }
@@ -55,7 +55,7 @@ final class FloatingNotificationManager {
 
     private func createWindow(for screen: NSScreen, id: CGDirectDisplayID, initial vm: FloatingNotificationViewModel, duration: TimeInterval) {
         let stackVM = NotificationStackViewModel()
-        stackVM.addNotification(vm, duration: duration)
+        addNotification(vm, duration: duration, to: stackVM)
 
         let hoverState = HoverState()
         let hosting = HoverTrackingHostingView(
@@ -125,6 +125,16 @@ final class FloatingNotificationManager {
         }
     }
 
+    private func addNotification(
+        _ vm: FloatingNotificationViewModel,
+        duration: TimeInterval,
+        to stackVM: NotificationStackViewModel
+    ) {
+        stackVM.addNotification(vm, duration: duration) { [weak self] id in
+            self?.dismissNotification(id: id)
+        }
+    }
+
     // MARK: - Global pointer tracking
 
     private func startPointerTracking() {
@@ -178,9 +188,15 @@ final class FloatingNotificationManager {
         if (forceClick || (isLeftMouseDown && !wasLeftMouseDown)), let clickedEntry,
            let first = clickedEntry.viewModel.notifications.first {
             updateCursor(isOverCloseArea: false)
-            clickedEntry.viewModel.dismiss(first)
+            dismissNotification(id: first.id)
         }
         wasLeftMouseDown = isLeftMouseDown
+    }
+
+    private func dismissNotification(id: FloatingNotificationViewModel.ID) {
+        stacks.values.forEach { entry in
+            entry.viewModel.dismiss(id: id)
+        }
     }
 
     private func setHovering(_ isHovering: Bool, for hoverState: HoverState) {

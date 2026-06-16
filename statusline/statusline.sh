@@ -81,6 +81,16 @@ _extract_skills() {
   ' 2>/dev/null | awk '!seen[$0]++'
 }
 
+# Helper: extract the most recent Skill tool_use name from a JSONL stream
+_extract_last_skill() {
+  jq -r '
+    select(.type == "assistant")
+    | .message.content[]?
+    | select(.type == "tool_use" and .name == "Skill")
+    | .input.skill // empty
+  ' 2>/dev/null | tail -1
+}
+
 # === All skills in session ===
 
 all_skills="${C_WHITE}-${C_RESET}"
@@ -108,24 +118,17 @@ if [ -n "$transcript" ] && [ -f "$transcript" ]; then
     # Search after the last user message (current turn)
     if [ "$last_user_line" -lt "$total_lines" ]; then
       _tmp=$(tail -n +"$((last_user_line + 1))" "$transcript" 2>/dev/null \
-        | _extract_skills 2>/dev/null || true)
+        | _extract_last_skill 2>/dev/null || true)
       if [ -n "$_tmp" ]; then
-        latest_skills=$(echo "$_tmp" \
-          | awk -v blue="$C_BLUE" -v dim="$C_WHITE" -v reset="$C_RESET" \
-            'NR==1{printf "%sC:%s%s",blue,$0,reset}
-             NR>1{printf " %s>%s %sC:%s%s",dim,reset,blue,$0,reset}' 2>/dev/null || true)
+        latest_skills=$(printf '%sC:%s%s' "$C_BLUE" "$_tmp" "$C_RESET")
       fi
     fi
 
     # Fallback: if no Skill in current turn, find the most recent Skill in entire transcript
     if [ "$latest_skills" = "${C_WHITE}-${C_RESET}" ]; then
-      _tmp=$(_extract_skills < "$transcript" 2>/dev/null \
-        | tail -3 2>/dev/null || true)
+      _tmp=$(_extract_last_skill < "$transcript" 2>/dev/null || true)
       if [ -n "$_tmp" ]; then
-        latest_skills=$(echo "$_tmp" \
-          | awk -v blue="$C_BLUE" -v dim="$C_WHITE" -v reset="$C_RESET" \
-            'NR==1{printf "%sC:%s%s",blue,$0,reset}
-             NR>1{printf " %s>%s %sC:%s%s",dim,reset,blue,$0,reset}' 2>/dev/null || true)
+        latest_skills=$(printf '%sC:%s%s' "$C_BLUE" "$_tmp" "$C_RESET")
       fi
     fi
   fi
