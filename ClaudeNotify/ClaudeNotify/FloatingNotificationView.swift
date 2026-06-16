@@ -2,7 +2,6 @@ import SwiftUI
 
 struct FloatingNotificationView: View {
     let viewModel: FloatingNotificationViewModel
-    let onDismiss: () -> Void
 
     @Environment(HoverState.self) private var hoverState
 
@@ -54,25 +53,15 @@ struct FloatingNotificationView: View {
                     .font(.system(size: 9, weight: .bold))
                     .foregroundStyle(.white.opacity(0.6))
                     .frame(width: 24, height: 24)
-                    .contentShape(Circle())
-                    .onTapGesture { onDismiss() }
-                    .onHover { hovering in
-                        if hovering {
-                            NSCursor.pointingHand.push()
-                        } else {
-                            NSCursor.pop()
-                        }
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        hoverState.onDismiss?()
                     }
                     .transition(.opacity)
                     .padding(8)
             }
         }
         .shadow(color: .black.opacity(0.35), radius: 16, x: 0, y: 6)
-        .onHover { hovering in
-            withAnimation(.easeInOut(duration: 0.15)) {
-                hoverState.isHovering = hovering
-            }
-        }
     }
 
     private var statusColor: Color {

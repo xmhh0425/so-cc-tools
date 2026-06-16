@@ -7,9 +7,7 @@ struct NotificationStackView: View {
     var body: some View {
         VStack(spacing: 8) {
             ForEach(viewModel.notifications) { notification in
-                FloatingNotificationView(viewModel: notification) {
-                    viewModel.dismiss(notification)
-                }
+                FloatingNotificationView(viewModel: notification)
                 .transition(.move(edge: .top).combined(with: .opacity))
             }
         }
