@@ -14,7 +14,7 @@ set -euo pipefail
 
 SETTINGS="$HOME/.claude/settings.json"
 
-# 脚本所在目录即 claude-tools 仓库根目录（本脚本放在仓库根目录）
+# 脚本所在目录即 so-cc-tools 仓库根目录（本脚本放在仓库根目录）
 REPO_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
 NOTIFY="bash $REPO_DIR/notify/notify-claude-notify.sh"

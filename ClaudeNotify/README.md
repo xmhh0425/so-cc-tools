@@ -1,6 +1,6 @@
-# ClaudeNotify
+# CC Tools (macOS App)
 
-A macOS menu bar app that receives real-time notifications from [Claude Code](https://claude.ai/code) via HTTP hooks — no system notification dependency.
+A macOS menu bar app for [SO CC Tools](../) — receives real-time notifications from [Claude Code](https://claude.ai/code) via HTTP hooks, manages hooks and settings through a GUI.
 
 ## Features
 
@@ -20,15 +20,15 @@ A macOS menu bar app that receives real-time notifications from [Claude Code](ht
 ### From source (Xcode)
 
 ```bash
-git clone https://github.com/anthropics/claude-notify.git
-cd claude-notify
-open ClaudeNotify.xcodeproj
+git clone https://github.com/xmhh0425/so-cc-tools.git ~/AI/so-cc-tools
+cd ~/AI/so-cc-tools
+open ClaudeNotify/ClaudeNotify.xcodeproj
 # Build & Run (⌘R)
 ```
 
 ### Configure hooks
 
-Open ClaudeNotify, click the bell icon in the menu bar → **Setup Hooks** → **Install All**.
+Open CC Tools, click the bell icon in the menu bar → **Setup Hooks** → **Install All**.
 
 Or manually add to `~/.claude/settings.json`:
 
