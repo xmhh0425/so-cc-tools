@@ -18,11 +18,11 @@ final class NotificationStackViewModel {
     }
 
     /// Call only from the main thread.
-    func addNotification(_ vm: FloatingNotificationViewModel) {
+    func addNotification(_ vm: FloatingNotificationViewModel, duration: TimeInterval) {
         notifications.insert(vm, at: 0)
 
         Task { [weak self] in
-            try? await Task.sleep(for: .seconds(60))
+            try? await Task.sleep(for: .seconds(duration))
             self?.dismiss(vm)
         }
     }

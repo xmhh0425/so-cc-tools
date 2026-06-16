@@ -27,6 +27,18 @@ final class SettingsStore {
         didSet { UserDefaults.standard.set(maxHistoryDisplay, forKey: "maxHistoryDisplay") }
     }
 
+    var stopDuration: Int {
+        didSet { UserDefaults.standard.set(stopDuration, forKey: "stopDuration") }
+    }
+
+    var notificationDuration: Int {
+        didSet { UserDefaults.standard.set(notificationDuration, forKey: "notificationDuration") }
+    }
+
+    var stopFailureDuration: Int {
+        didSet { UserDefaults.standard.set(stopFailureDuration, forKey: "stopFailureDuration") }
+    }
+
     init() {
         let defaults = UserDefaults.standard
         // Register defaults
@@ -37,6 +49,9 @@ final class SettingsStore {
             "floatingNotificationEnabled": true,
             "systemNotificationEnabled": false,
             "maxHistoryDisplay": 20,
+            "stopDuration": 60,
+            "notificationDuration": 60,
+            "stopFailureDuration": 60,
         ])
 
         self.port = defaults.integer(forKey: "port")
@@ -45,5 +60,8 @@ final class SettingsStore {
         self.floatingNotificationEnabled = defaults.bool(forKey: "floatingNotificationEnabled")
         self.systemNotificationEnabled = defaults.bool(forKey: "systemNotificationEnabled")
         self.maxHistoryDisplay = defaults.integer(forKey: "maxHistoryDisplay")
+        self.stopDuration = defaults.integer(forKey: "stopDuration")
+        self.notificationDuration = defaults.integer(forKey: "notificationDuration")
+        self.stopFailureDuration = defaults.integer(forKey: "stopFailureDuration")
     }
 }

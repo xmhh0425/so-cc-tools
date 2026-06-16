@@ -25,6 +25,11 @@ final class AppCoordinator {
 
         setupCallbacks()
         startServer()
+
+        // Hide Dock icon.  Deferred to avoid crash during SwiftUI app init.
+        DispatchQueue.main.async {
+            NSApp.setActivationPolicy(.accessory)
+        }
     }
 
     private func setupCallbacks() {

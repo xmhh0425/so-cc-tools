@@ -3,6 +3,8 @@ import SwiftUI
 struct FloatingNotificationView: View {
     let viewModel: FloatingNotificationViewModel
 
+    @Environment(HoverState.self) private var hoverState
+
     var body: some View {
         HStack(alignment: .top, spacing: 10) {
             Circle()
@@ -11,19 +13,16 @@ struct FloatingNotificationView: View {
                 .padding(.top, 5)
 
             VStack(alignment: .leading, spacing: 4) {
-                // Line 1: Event type
                 Text(viewModel.event.displayName)
                     .font(.system(size: 11, weight: .semibold))
                     .foregroundStyle(.white.opacity(0.7))
 
-                // Line 2: Message content (main focus)
                 Text(viewModel.message)
                     .font(.system(size: 13, weight: .medium))
                     .foregroundStyle(.white)
                     .lineLimit(3)
                     .fixedSize(horizontal: false, vertical: true)
 
-                // Line 3: Project name
                 if let project = viewModel.project {
                     HStack(spacing: 4) {
                         Image(systemName: "folder.fill")
@@ -34,6 +33,8 @@ struct FloatingNotificationView: View {
                     .foregroundStyle(.white.opacity(0.55))
                 }
             }
+
+            Spacer(minLength: 0)
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
@@ -44,8 +45,22 @@ struct FloatingNotificationView: View {
         )
         .overlay(
             RoundedRectangle(cornerRadius: 12)
-                .strokeBorder(.white.opacity(0.08), lineWidth: 0.5)
+                .strokeBorder(.white.opacity(hoverState.isHovering ? 0.15 : 0.08), lineWidth: 0.5)
         )
+        .overlay(alignment: .topTrailing) {
+            if hoverState.isHovering {
+                Image(systemName: "xmark")
+                    .font(.system(size: 9, weight: .bold))
+                    .foregroundStyle(.white.opacity(0.6))
+                    .frame(width: 24, height: 24)
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        hoverState.onDismiss?()
+                    }
+                    .transition(.opacity)
+                    .padding(8)
+            }
+        }
         .shadow(color: .black.opacity(0.35), radius: 16, x: 0, y: 6)
     }
 

@@ -8,10 +8,7 @@ struct NotificationStackView: View {
         VStack(spacing: 8) {
             ForEach(viewModel.notifications) { notification in
                 FloatingNotificationView(viewModel: notification)
-                    .transition(.move(edge: .top).combined(with: .opacity))
-                    .onTapGesture {
-                        viewModel.dismiss(notification)
-                    }
+                .transition(.move(edge: .top).combined(with: .opacity))
             }
         }
         .padding(.top, 8)

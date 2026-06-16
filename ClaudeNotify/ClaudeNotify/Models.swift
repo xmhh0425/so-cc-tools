@@ -28,6 +28,15 @@ enum HookEvent: String, Codable, CaseIterable {
         case .stopFailure: return "exclamationmark.triangle.fill"
         }
     }
+
+    /// Returns the UserDefaults key for this event's display duration setting.
+    var durationKey: String {
+        switch self {
+        case .stop: return "stopDuration"
+        case .notification: return "notificationDuration"
+        case .stopFailure: return "stopFailureDuration"
+        }
+    }
 }
 
 /// A single notification record stored in history.
