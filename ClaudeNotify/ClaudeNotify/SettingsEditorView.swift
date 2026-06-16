@@ -1,34 +1,28 @@
 import SwiftUI
 
-/// Settings editor page: visualize settings.json by sections, with raw JSON fallback.
+/// Configuration repair page: run fix-settings.sh to restore overwritten settings.
 struct SettingsEditorView: View {
     let settingsManager: SettingsManager
 
+    @State private var isRunning = false
+    @State private var result: FixResult?
     @State private var settings: [String: Any]?
-    @State private var showRawJSON = false
-    @State private var errorMessage: String?
+
+    struct FixResult {
+        let success: Bool
+        let output: String
+    }
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
                 headerSection
-
-                if let errorMessage {
-                    errorBanner(errorMessage)
+                explanationCard
+                actionCard
+                if let result {
+                    resultCard(result)
                 }
-
-                if let settings {
-                    modelSection(settings)
-                    envSection(settings)
-                    pluginsSection(settings)
-                    hooksSection(settings)
-                    statusLineSection(settings)
-                    rawJSONSection(settings)
-                } else {
-                    Text("无法读取 settings.json")
-                        .foregroundStyle(.secondary)
-                        .padding()
-                }
+                currentConfigCard
             }
             .padding(24)
         }
@@ -39,17 +33,13 @@ struct SettingsEditorView: View {
 
     private var headerSection: some View {
         HStack {
-            Image(systemName: "doc.text")
+            Image(systemName: "wrench.and.screwdriver.fill")
                 .font(.title2)
                 .foregroundStyle(.blue)
-            Text("设置编辑")
+            Text("配置修复")
                 .font(.title2)
                 .fontWeight(.semibold)
             Spacer()
-            Button("在编辑器中打开") {
-                openInEditor()
-            }
-            .controlSize(.small)
             Button("刷新") {
                 refreshData()
             }
@@ -57,174 +47,171 @@ struct SettingsEditorView: View {
         }
     }
 
-    // MARK: - Model Section
+    // MARK: - Explanation Card
+
+    private var explanationCard: some View {
+        GroupBox("为什么需要修复？") {
+            VStack(alignment: .leading, spacing: 8) {
+                Text("CC Switch 等代理切换工具会重写 `~/.claude/settings.json`，丢弃 `statusLine` 和 `hooks` 字段，导致状态栏和通知失效。")
+                    .font(.system(size: 12))
+                    .foregroundStyle(.secondary)
+
+                Text("修复脚本会将缺失的配置合并回去，不影响其他字段。")
+                    .font(.system(size: 12))
+                    .foregroundStyle(.secondary)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.vertical, 4)
+        }
+    }
+
+    // MARK: - Action Card
+
+    private var actionCard: some View {
+        GroupBox("操作") {
+            VStack(alignment: .leading, spacing: 12) {
+                HStack(spacing: 12) {
+                    Button {
+                        runFixScript()
+                    } label: {
+                        Label(isRunning ? "修复中…" : "一键修复", systemImage: "arrow.triangle.2.circlepath")
+                            .font(.system(size: 13, weight: .medium))
+                            .frame(width: 120)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.regular)
+                    .disabled(isRunning)
+
+                    if isRunning {
+                        ProgressView()
+                            .scaleEffect(0.7)
+                    }
+                }
+
+                Text("执行 `fix-settings.sh`，合并回 statusLine + 全部 hooks，写前自动备份。")
+                    .font(.system(size: 10))
+                    .foregroundStyle(.tertiary)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.vertical, 4)
+        }
+    }
+
+    // MARK: - Result Card
 
     @ViewBuilder
-    private func modelSection(_ settings: [String: Any]) -> some View {
-        GroupBox("模型") {
+    private func resultCard(_ result: FixResult) -> some View {
+        GroupBox {
             VStack(alignment: .leading, spacing: 8) {
-                readonlyRow("默认模型", value: settings["model"] as? String ?? "未设置")
-                readonlyRow("Effort 等级", value: settings["effortLevel"] as? String ?? "未设置")
+                HStack {
+                    Image(systemName: result.success ? "checkmark.circle.fill" : "xmark.circle.fill")
+                        .foregroundStyle(result.success ? .green : .red)
+                        .font(.system(size: 14))
+                    Text(result.success ? "修复成功" : "修复失败")
+                        .font(.system(size: 13, weight: .medium))
+                }
+
+                Text(result.output)
+                    .font(.system(size: 11, design: .monospaced))
+                    .foregroundStyle(.secondary)
+                    .textSelection(.enabled)
+
+                if result.success {
+                    Text("若当前会话未立即生效，重开一个 Claude Code 会话即可。")
+                        .font(.system(size: 10))
+                        .foregroundStyle(.tertiary)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.vertical, 4)
+        }
+    }
+
+    // MARK: - Current Config Card
+
+    private var currentConfigCard: some View {
+        GroupBox("当前配置状态") {
+            VStack(alignment: .leading, spacing: 8) {
+                if let settings {
+                    configStatusRow("hooks", exists: settings["hooks"] != nil)
+                    configStatusRow("statusLine", exists: settings["statusLine"] != nil)
+                    configStatusRow("model", exists: settings["model"] != nil)
+                    configStatusRow("env", exists: settings["env"] != nil)
+                } else {
+                    Text("无法读取 settings.json")
+                        .font(.system(size: 12))
+                        .foregroundStyle(.secondary)
+                }
             }
             .padding(.vertical, 4)
         }
     }
 
-    // MARK: - Environment Variables Section
-
-    @ViewBuilder
-    private func envSection(_ settings: [String: Any]) -> some View {
-        if let env = settings["env"] as? [String: Any], !env.isEmpty {
-            GroupBox("环境变量（env）") {
-                VStack(alignment: .leading, spacing: 4) {
-                    ForEach(env.keys.sorted(), id: \.self) { key in
-                        let value = env[key] as? String ?? "—"
-                        HStack(alignment: .top) {
-                            Text(key)
-                                .font(.system(size: 11, design: .monospaced))
-                                .foregroundStyle(.secondary)
-                                .frame(width: 220, alignment: .leading)
-                            Text(maskSensitive(key, value: value))
-                                .font(.system(size: 11, design: .monospaced))
-                                .textSelection(.enabled)
-                                .lineLimit(2)
-                        }
-                    }
-                }
-                .padding(.vertical, 4)
-            }
-        }
-    }
-
-    // MARK: - Plugins Section
-
-    @ViewBuilder
-    private func pluginsSection(_ settings: [String: Any]) -> some View {
-        if let plugins = settings["enabledPlugins"] as? [String: Bool], !plugins.isEmpty {
-            GroupBox("已启用插件") {
-                VStack(alignment: .leading, spacing: 4) {
-                    ForEach(plugins.keys.sorted(), id: \.self) { key in
-                        HStack {
-                            Image(systemName: plugins[key] == true ? "checkmark.circle.fill" : "circle")
-                                .foregroundStyle(plugins[key] == true ? .green : .secondary)
-                                .font(.system(size: 11))
-                            Text(key)
-                                .font(.system(size: 11, design: .monospaced))
-                                .textSelection(.enabled)
-                        }
-                    }
-                }
-                .padding(.vertical, 4)
-            }
-        }
-    }
-
-    // MARK: - Hooks Section
-
-    @ViewBuilder
-    private func hooksSection(_ settings: [String: Any]) -> some View {
-        if let hooks = settings["hooks"] as? [String: Any] {
-            GroupBox("Hooks") {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("共 \(hooks.keys.count) 个事件类型，在「Hook 管理」页可编辑")
-                        .font(.system(size: 11))
-                        .foregroundStyle(.secondary)
-                    ForEach(hooks.keys.sorted(), id: \.self) { event in
-                        HStack {
-                            Text(event)
-                                .font(.system(size: 11, weight: .medium))
-                            Spacer()
-                            if let groups = hooks[event] as? [[String: Any]] {
-                                Text("\(groups.count) 条规则")
-                                    .font(.system(size: 10))
-                                    .foregroundStyle(.tertiary)
-                            }
-                        }
-                    }
-                }
-                .padding(.vertical, 4)
-            }
-        }
-    }
-
-    // MARK: - StatusLine Section
-
-    @ViewBuilder
-    private func statusLineSection(_ settings: [String: Any]) -> some View {
-        if let sl = settings["statusLine"] as? [String: Any] {
-            GroupBox("statusLine") {
-                VStack(alignment: .leading, spacing: 4) {
-                    readonlyRow("类型", value: sl["type"] as? String ?? "—")
-                    readonlyRow("命令", value: sl["command"] as? String ?? "—")
-                    readonlyRow("刷新间隔", value: "\(sl["refreshInterval"] as? Int ?? 0)s")
-                }
-                .padding(.vertical, 4)
-            }
-        }
-    }
-
-    // MARK: - Raw JSON Section
-
-    @ViewBuilder
-    private func rawJSONSection(_ settings: [String: Any]) -> some View {
-        DisclosureGroup("原始 JSON") {
-            Text(formatJSON(settings))
-                .font(.system(size: 10, design: .monospaced))
-                .foregroundStyle(.secondary)
-                .textSelection(.enabled)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.vertical, 8)
-        }
-    }
-
-    // MARK: - Helpers
-
-    private func readonlyRow(_ label: String, value: String) -> some View {
+    private func configStatusRow(_ key: String, exists: Bool) -> some View {
         HStack {
-            Text(label)
+            Image(systemName: exists ? "checkmark.circle.fill" : "circle.dashed")
+                .foregroundStyle(exists ? .green : .secondary)
                 .font(.system(size: 12))
-                .foregroundStyle(.secondary)
-            Spacer()
-            Text(value)
+            Text(key)
                 .font(.system(size: 12, design: .monospaced))
-                .textSelection(.enabled)
+            Spacer()
+            Text(exists ? "已配置" : "未配置")
+                .font(.system(size: 11))
+                .foregroundStyle(exists ? Color.secondary : Color.orange)
         }
     }
 
-    private func errorBanner(_ message: String) -> some View {
-        HStack {
-            Image(systemName: "exclamationmark.triangle.fill")
-                .foregroundStyle(.orange)
-            Text(message)
-                .font(.system(size: 12))
+    // MARK: - Actions
+
+    private func runFixScript() {
+        isRunning = true
+        result = nil
+
+        DispatchQueue.global(qos: .userInitiated).async {
+            let scriptPath = resolveFixScriptPath()
+            let success: Bool
+            let output: String
+
+            if let scriptPath {
+                let process = Process()
+                process.executableURL = URL(fileURLWithPath: "/bin/bash")
+                process.arguments = [scriptPath]
+
+                let pipe = Pipe()
+                process.standardOutput = pipe
+                process.standardError = pipe
+
+                do {
+                    try process.run()
+                    process.waitUntilExit()
+                    let data = pipe.fileHandleForReading.readDataToEndOfFile()
+                    output = String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+                    success = process.terminationStatus == 0
+                } catch {
+                    output = "执行失败：\(error.localizedDescription)"
+                    success = false
+                }
+            } else {
+                output = "未找到 fix-settings.sh，请确认仓库路径。"
+                success = false
+            }
+
+            DispatchQueue.main.async {
+                self.isRunning = false
+                self.result = FixResult(success: success, output: output)
+                self.refreshData()
+            }
         }
-        .padding(10)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(.orange.opacity(0.1), in: RoundedRectangle(cornerRadius: 6))
     }
 
-    private func maskSensitive(_ key: String, value: String) -> String {
-        let sensitiveKeys = ["TOKEN", "SECRET", "KEY", "PASSWORD", "AUTH"]
-        let isSensitive = sensitiveKeys.contains { key.uppercased().contains($0) }
-        if isSensitive && value.count > 10 {
-            return String(value.prefix(6)) + "…" + String(value.suffix(4))
-        }
-        return value
-    }
-
-    private func formatJSON(_ obj: Any) -> String {
-        guard let data = try? JSONSerialization.data(withJSONObject: obj, options: [.prettyPrinted, .sortedKeys, .fragmentsAllowed]),
-              let str = String(data: data, encoding: .utf8) else {
-            return "无法格式化"
-        }
-        return str
-    }
-
-    private func openInEditor() {
-        let path = FileManager.default.homeDirectoryForCurrentUser
-            .appendingPathComponent(".claude")
-            .appendingPathComponent("settings.json")
-        NSWorkspace.shared.open(path)
+    private func resolveFixScriptPath() -> String? {
+        let fm = FileManager.default
+        let home = fm.homeDirectoryForCurrentUser.path
+        let candidates = [
+            "\(home)/AI/so-cc-tools/fix-settings.sh",
+            "\(home)/AI/claude-tools/fix-settings.sh",
+        ]
+        return candidates.first { fm.fileExists(atPath: $0) }
     }
 
     private func refreshData() {

@@ -4,7 +4,7 @@ import SwiftUI
 enum ManagementPage: String, CaseIterable, Identifiable {
     case dashboard = "概览"
     case hooks = "Hook 管理"
-    case settings = "设置编辑"
+    case settings = "配置修复"
     case notifications = "通知"
 
     var id: String { rawValue }
@@ -13,7 +13,7 @@ enum ManagementPage: String, CaseIterable, Identifiable {
         switch self {
         case .dashboard: return "square.grid.2x2"
         case .hooks: return "point.3.connected.trianglepath.dotted"
-        case .settings: return "doc.text"
+        case .settings: return "wrench.and.screwdriver"
         case .notifications: return "bell.badge"
         }
     }
