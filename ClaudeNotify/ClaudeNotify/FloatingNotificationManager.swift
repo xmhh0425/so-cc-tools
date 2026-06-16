@@ -11,7 +11,11 @@ extension NSScreen {
 /// Creates notification windows on demand per screen. Destroys them when empty.
 final class FloatingNotificationManager {
     private var stacks: [CGDirectDisplayID: ScreenEntry] = [:]
-    private var clickTap: Any? // CGEventTap for click detection
+    private var pointerTimer: Timer?
+    private var eventMonitors: [Any] = []
+    private var cursorIsPointingHand = false
+    private var wasLeftMouseDown = false
+    private let closeHitArea = NSSize(width: 56, height: 48)
 
     private struct ScreenEntry {
         let window: NSWindow
@@ -20,7 +24,14 @@ final class FloatingNotificationManager {
     }
 
     init() {
-        installClickTap()
+        startPointerTracking()
+        installPointerEventMonitors()
+    }
+
+    deinit {
+        pointerTimer?.invalidate()
+        eventMonitors.forEach(NSEvent.removeMonitor)
+        NSCursor.arrow.set()
     }
 
     func show(event: HookEvent, message: String, project: String?) {
@@ -40,40 +51,6 @@ final class FloatingNotificationManager {
         }
     }
 
-    // MARK: - CGEventTap for global click detection
-
-    private func installClickTap() {
-        let mask: CGEventMask = (1 << CGEventType.leftMouseDown.rawValue)
-        let ptr = Unmanaged.passUnretained(self).toOpaque()
-        guard let tap = CGEvent.tapCreate(
-            tap: .cgSessionEventTap,
-            place: .headInsertEventTap,
-            options: .defaultTap,
-            eventsOfInterest: mask,
-            callback: clickTapCallback,
-            userInfo: ptr
-        ) else {
-            print("[ClaudeNotify] CGEventTap failed — grant Accessibility permission in System Settings → Privacy & Security → Accessibility")
-            return
-        }
-        let source = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, tap, 0)
-        CFRunLoopAddSource(CFRunLoopGetMain(), source, .commonModes)
-        CGEvent.tapEnable(tap: tap, enable: true)
-        clickTap = tap
-    }
-
-    /// Called by the global CGEventTap callback when a click lands on a notification window.
-    func handleClick(at point: NSPoint) {
-        for entry in stacks.values {
-            if entry.window.isVisible && entry.window.frame.contains(point) {
-                if let first = entry.viewModel.notifications.first {
-                    entry.viewModel.dismiss(first)
-                }
-                return
-            }
-        }
-    }
-
     // MARK: - Window creation
 
     private func createWindow(for screen: NSScreen, id: CGDirectDisplayID, initial vm: FloatingNotificationViewModel, duration: TimeInterval) {
@@ -85,8 +62,8 @@ final class FloatingNotificationManager {
             rootView: NotificationStackView(viewModel: stackVM)
                 .environment(hoverState)
         )
-        // Event-driven hover: the × appears the instant the cursor enters the
-        // banner, and disappears when it leaves — no polling, no focus needed.
+        // AppKit still reports hover while the app is active; the manager's
+        // pointer tracker below is the source of truth before activation.
         hosting.onHoverChange = { [weak hoverState] hovering in
             guard let hoverState else { return }
             withAnimation(.easeOut(duration: 0.12)) {
@@ -118,11 +95,6 @@ final class FloatingNotificationManager {
         window.ignoresMouseEvents = false
         window.acceptsMouseMovedEvents = true
 
-        hoverState.onDismiss = { [weak stackVM] in
-            guard let stackVM, let first = stackVM.notifications.first else { return }
-            stackVM.dismiss(first)
-        }
-
         let entry = ScreenEntry(window: window, viewModel: stackVM, hoverState: hoverState)
         stacks[id] = entry
 
@@ -153,6 +125,98 @@ final class FloatingNotificationManager {
         }
     }
 
+    // MARK: - Global pointer tracking
+
+    private func startPointerTracking() {
+        let timer = Timer(timeInterval: 1.0 / 60.0, repeats: true) { [weak self] _ in
+            self?.updatePointerState()
+        }
+        RunLoop.main.add(timer, forMode: .common)
+        pointerTimer = timer
+    }
+
+    private func installPointerEventMonitors() {
+        let mask: NSEvent.EventTypeMask = [.mouseMoved, .leftMouseDragged, .leftMouseDown]
+        if let localMonitor = NSEvent.addLocalMonitorForEvents(matching: mask, handler: { [weak self] event in
+            self?.updatePointerState(forceClick: event.type == .leftMouseDown)
+            return event
+        }) {
+            eventMonitors.append(localMonitor)
+        }
+
+        if let globalMonitor = NSEvent.addGlobalMonitorForEvents(matching: mask, handler: { [weak self] event in
+            DispatchQueue.main.async {
+                self?.updatePointerState(forceClick: event.type == .leftMouseDown)
+            }
+        }) {
+            eventMonitors.append(globalMonitor)
+        }
+    }
+
+    private func updatePointerState(forceClick: Bool = false) {
+        let mouse = NSEvent.mouseLocation
+        var isOverCloseArea = false
+        var clickedEntry: ScreenEntry?
+
+        for entry in stacks.values {
+            let isHoveringWindow = entry.window.isVisible && entry.window.frame.contains(mouse)
+            setHovering(isHoveringWindow, for: entry.hoverState)
+            let isHoveringClose = isHoveringWindow && closeArea(for: entry.window).contains(mouse)
+            setCloseHovering(isHoveringClose, for: entry.hoverState)
+
+            guard isHoveringClose else {
+                continue
+            }
+
+            isOverCloseArea = true
+            clickedEntry = entry
+        }
+
+        updateCursor(isOverCloseArea: isOverCloseArea)
+
+        let isLeftMouseDown = (NSEvent.pressedMouseButtons & 1) == 1
+        if (forceClick || (isLeftMouseDown && !wasLeftMouseDown)), let clickedEntry,
+           let first = clickedEntry.viewModel.notifications.first {
+            updateCursor(isOverCloseArea: false)
+            clickedEntry.viewModel.dismiss(first)
+        }
+        wasLeftMouseDown = isLeftMouseDown
+    }
+
+    private func setHovering(_ isHovering: Bool, for hoverState: HoverState) {
+        guard hoverState.isHovering != isHovering else { return }
+        withAnimation(.easeOut(duration: 0.12)) {
+            hoverState.isHovering = isHovering
+        }
+    }
+
+    private func setCloseHovering(_ isHovering: Bool, for hoverState: HoverState) {
+        guard hoverState.isHoveringClose != isHovering else { return }
+        withAnimation(.easeOut(duration: 0.10)) {
+            hoverState.isHoveringClose = isHovering
+        }
+    }
+
+    private func updateCursor(isOverCloseArea: Bool) {
+        if isOverCloseArea {
+            NSCursor.pointingHand.set()
+            cursorIsPointingHand = true
+        } else if cursorIsPointingHand {
+            NSCursor.arrow.set()
+            cursorIsPointingHand = false
+        }
+    }
+
+    private func closeArea(for window: NSWindow) -> NSRect {
+        let frame = window.frame
+        return NSRect(
+            x: frame.minX,
+            y: frame.maxY - closeHitArea.height,
+            width: closeHitArea.width,
+            height: closeHitArea.height
+        )
+    }
+
     private static func fitWindowToContent(window: NSWindow, hosting: NSView, maxHeight: CGFloat) {
         let contentHeight = hosting.fittingSize.height
         guard contentHeight > 0 else { return }
@@ -169,35 +233,4 @@ final class FloatingNotificationManager {
             window.setFrame(newFrame, display: true, animate: false)
         }
     }
-}
-
-// MARK: - Global CGEventTap callback (must not capture context)
-
-private func clickTapCallback(
-    proxy: CGEventTapProxy,
-    type: CGEventType,
-    event: CGEvent,
-    userInfo: UnsafeMutableRawPointer?
-) -> Unmanaged<CGEvent>? {
-    if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput {
-        return Unmanaged.passRetained(event)
-    }
-    guard type == .leftMouseDown, let userInfo else {
-        return Unmanaged.passRetained(event)
-    }
-    let manager = Unmanaged<FloatingNotificationManager>.fromOpaque(userInfo).takeUnretainedValue()
-
-    let loc = event.location
-    for screen in NSScreen.screens {
-        let relX = loc.x - screen.frame.origin.x
-        let relY = loc.y - screen.frame.origin.y
-        guard relX >= 0, relX <= screen.frame.width,
-              relY >= 0, relY <= screen.frame.height else { continue }
-        let akPoint = NSPoint(x: relX, y: screen.frame.height - relY)
-        DispatchQueue.main.async {
-            manager.handleClick(at: akPoint)
-        }
-        return Unmanaged.passRetained(event)
-    }
-    return Unmanaged.passRetained(event)
 }

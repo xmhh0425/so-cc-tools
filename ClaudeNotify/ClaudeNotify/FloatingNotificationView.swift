@@ -47,18 +47,29 @@ struct FloatingNotificationView: View {
             RoundedRectangle(cornerRadius: 12)
                 .strokeBorder(.white.opacity(hoverState.isHovering ? 0.15 : 0.08), lineWidth: 0.5)
         )
-        .overlay(alignment: .topTrailing) {
+        .overlay(alignment: .topLeading) {
             if hoverState.isHovering {
-                Image(systemName: "xmark")
-                    .font(.system(size: 9, weight: .bold))
-                    .foregroundStyle(.white.opacity(0.6))
-                    .frame(width: 24, height: 24)
-                    .contentShape(Rectangle())
-                    .onTapGesture {
-                        hoverState.onDismiss?()
-                    }
-                    .transition(.opacity)
-                    .padding(8)
+                ZStack {
+                    Circle()
+                        .fill(.white.opacity(hoverState.isHoveringClose ? 1.0 : 0.9))
+                        .shadow(
+                            color: .black.opacity(hoverState.isHoveringClose ? 0.28 : 0.18),
+                            radius: hoverState.isHoveringClose ? 7 : 4,
+                            x: 0,
+                            y: hoverState.isHoveringClose ? 2 : 1
+                        )
+
+                    Image(systemName: "xmark")
+                        .font(.system(size: hoverState.isHoveringClose ? 17 : 16, weight: .semibold))
+                        .foregroundStyle(.black.opacity(hoverState.isHoveringClose ? 0.82 : 0.68))
+                }
+                .frame(width: 34, height: 34)
+                .contentShape(Circle())
+                .allowsHitTesting(false)
+                .scaleEffect(hoverState.isHoveringClose ? 1.08 : 1.0)
+                .transition(.scale(scale: 0.85).combined(with: .opacity))
+                .animation(.easeOut(duration: 0.10), value: hoverState.isHoveringClose)
+                .padding(8)
             }
         }
         .shadow(color: .black.opacity(0.35), radius: 16, x: 0, y: 6)
