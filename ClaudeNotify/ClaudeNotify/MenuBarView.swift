@@ -2,21 +2,32 @@ import SwiftUI
 
 struct MenuBarView: View {
     let coordinator: AppCoordinator
-    @State private var page: MenuPage = .main
+    let panelState: MenuPanelState
+    let onPageChange: (MenuPage) -> Void
 
     var body: some View {
         Group {
-            switch page {
+            switch panelState.page {
             case .main:
                 mainPage
             case .setup:
-                SetupPage(coordinator: coordinator, page: $page)
+                SetupPage(coordinator: coordinator, page: pageBinding)
             case .settings:
-                SettingsPage(coordinator: coordinator, page: $page)
+                SettingsPage(coordinator: coordinator, page: pageBinding)
             }
         }
-        .frame(width: 340)
-        .animation(.easeInOut(duration: 0.15), value: page)
+        .frame(width: 340, height: panelState.height, alignment: .top)
+        .animation(.easeInOut(duration: 0.15), value: panelState.page)
+        .onChange(of: panelState.page) { _, newPage in
+            onPageChange(newPage)
+        }
+    }
+
+    private var pageBinding: Binding<MenuPage> {
+        Binding(
+            get: { panelState.page },
+            set: { panelState.page = $0 }
+        )
     }
 
     // MARK: - Main Page
@@ -37,6 +48,7 @@ struct MenuBarView: View {
             Divider()
             actionSection
         }
+        .frame(maxHeight: .infinity, alignment: .top)
     }
 
     private var headerSection: some View {
@@ -98,16 +110,16 @@ struct MenuBarView: View {
                 }
             }
         }
-        .frame(maxHeight: 320)
+        .frame(maxHeight: 140)
     }
 
     private var actionSection: some View {
         VStack(spacing: 0) {
             actionRow(icon: "wrench.and.screwdriver", title: "配置 Hook") {
-                page = .setup
+                panelState.page = .setup
             }
             actionRow(icon: "gear", title: "设置") {
-                page = .settings
+                panelState.page = .settings
             }
             if !coordinator.history.records.isEmpty {
                 actionRow(icon: "trash", title: "清空历史") {
@@ -161,7 +173,7 @@ private struct QuitRow: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .contentShape(Rectangle())
                 .padding(.horizontal, 16)
-                .padding(.vertical, 8)
+                .padding(.vertical, 6)
                 .background(hovering ? Color.red.opacity(0.1) : Color.clear)
         }
         .buttonStyle(.plain)
