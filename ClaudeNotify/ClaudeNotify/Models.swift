@@ -1,7 +1,7 @@
 import Foundation
 
 /// Navigation state for the menu bar dropdown
-enum MenuPage {
+enum MenuPage: Equatable {
     case main
     case setup
     case settings

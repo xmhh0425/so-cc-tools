@@ -279,7 +279,8 @@
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = "";
 				ENABLE_HARDENED_RUNTIME = YES;
-				GENERATE_INFOPLIST_FILE = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = ClaudeNotify/Info.plist;
 				INFOPLIST_KEY_CFBundleIconName = AppIcon;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "Copyright © 2025 ClaudeNotify Contributors. MIT License.";
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -304,7 +305,8 @@
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = "";
 				ENABLE_HARDENED_RUNTIME = YES;
-				GENERATE_INFOPLIST_FILE = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = ClaudeNotify/Info.plist;
 				INFOPLIST_KEY_CFBundleIconName = AppIcon;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "Copyright © 2025 ClaudeNotify Contributors. MIT License.";
 				LD_RUNPATH_SEARCH_PATHS = (
