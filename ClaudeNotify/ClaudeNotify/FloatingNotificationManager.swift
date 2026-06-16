@@ -71,7 +71,7 @@ final class FloatingNotificationManager {
             }
         }
 
-        let bannerWidth: CGFloat = 360
+        let bannerWidth: CGFloat = 440
         let bannerMaxHeight: CGFloat = 300
         let menuBarHeight: CGFloat = 50
         let screenFrame = screen.frame
