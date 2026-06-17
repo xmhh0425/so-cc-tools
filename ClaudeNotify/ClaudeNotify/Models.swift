@@ -3,7 +3,6 @@ import Foundation
 /// Navigation state for the menu bar dropdown
 enum MenuPage: Equatable {
     case main
-    case setup
     case settings
 }
 
@@ -12,12 +11,14 @@ enum HookEvent: String, Codable, CaseIterable {
     case stop = "Stop"
     case notification = "Notification"
     case stopFailure = "StopFailure"
+    case configBroken = "ConfigBroken"
 
     var displayName: String {
         switch self {
         case .stop: return "任务完成"
         case .notification: return "需要输入"
         case .stopFailure: return "错误"
+        case .configBroken: return "配置异常"
         }
     }
 
@@ -26,6 +27,7 @@ enum HookEvent: String, Codable, CaseIterable {
         case .stop: return "checkmark.circle.fill"
         case .notification: return "bell.badge.fill"
         case .stopFailure: return "exclamationmark.triangle.fill"
+        case .configBroken: return "exclamationmark.shield.fill"
         }
     }
 
@@ -35,6 +37,15 @@ enum HookEvent: String, Codable, CaseIterable {
         case .stop: return "stopDuration"
         case .notification: return "notificationDuration"
         case .stopFailure: return "stopFailureDuration"
+        case .configBroken: return "configBrokenDuration"
+        }
+    }
+
+    /// Whether this event represents an installable Claude Code hook.
+    var isInstallable: Bool {
+        switch self {
+        case .stop, .notification, .stopFailure: return true
+        case .configBroken: return false
         }
     }
 }

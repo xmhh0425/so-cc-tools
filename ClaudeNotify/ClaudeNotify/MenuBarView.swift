@@ -3,24 +3,18 @@ import SwiftUI
 struct MenuBarView: View {
     let coordinator: AppCoordinator
     let panelState: MenuPanelState
-    let onPageChange: (MenuPage) -> Void
 
     var body: some View {
         Group {
             switch panelState.page {
             case .main:
                 mainPage
-            case .setup:
-                SetupPage(coordinator: coordinator, page: pageBinding)
             case .settings:
                 SettingsPage(coordinator: coordinator, page: pageBinding)
             }
         }
-        .frame(width: 340, height: panelState.height, alignment: .top)
+        .frame(width: MenuPanelLayout.panelWidth, alignment: .top)
         .animation(.easeInOut(duration: 0.15), value: panelState.page)
-        .onChange(of: panelState.page) { _, newPage in
-            onPageChange(newPage)
-        }
     }
 
     private var pageBinding: Binding<MenuPage> {
@@ -48,7 +42,13 @@ struct MenuBarView: View {
             Divider()
             actionSection
         }
-        .frame(maxHeight: .infinity, alignment: .top)
+        .frame(
+            height: MenuPanelLayout.mainPanelHeight(
+                recordCount: coordinator.history.records.count,
+                displayLimit: coordinator.settings.maxHistoryDisplay
+            ),
+            alignment: .top
+        )
     }
 
     private var headerSection: some View {
@@ -110,7 +110,12 @@ struct MenuBarView: View {
                 }
             }
         }
-        .frame(maxHeight: 140)
+        .frame(
+            height: MenuPanelLayout.historyListHeight(
+                recordCount: coordinator.history.records.count,
+                displayLimit: coordinator.settings.maxHistoryDisplay
+            )
+        )
     }
 
     private var actionSection: some View {
@@ -118,8 +123,8 @@ struct MenuBarView: View {
             actionRow(icon: "gearshape.2", title: "管理") {
                 coordinator.managementWindow.showWindow()
             }
-            actionRow(icon: "wrench.and.screwdriver", title: "配置 Hook") {
-                panelState.page = .setup
+            actionRow(icon: "wrench.and.screwdriver", title: "配置") {
+                coordinator.managementWindow.showWindow(page: .config)
             }
             actionRow(icon: "gear", title: "设置") {
                 panelState.page = .settings

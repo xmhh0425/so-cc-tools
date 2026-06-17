@@ -48,6 +48,12 @@ final class NotificationManager {
             if soundEnabled {
                 content.sound = UNNotificationSound.default
             }
+        case .configBroken:
+            content.title = "CC Tools · 配置异常"
+            content.body = message
+            if soundEnabled {
+                content.sound = UNNotificationSound.default
+            }
         }
 
         content.categoryIdentifier = "claude-code"

@@ -1,5 +1,6 @@
 import SwiftUI
 import AppKit
+import os.log
 
 /// Owns all shared state and handles app lifecycle.
 @Observable
@@ -10,6 +11,11 @@ final class AppCoordinator {
     let floatingNotifications: FloatingNotificationManager
     let server: HTTPServer
     let managementWindow: ManagementWindowController
+    let settingsManager: SettingsManager
+
+    var settingsWatcher: SettingsWatcher?
+    var currentHealth: ConfigHealth?
+    private var lastHealthySignature: String?
 
     init() {
         let s = SettingsStore()
@@ -18,6 +24,7 @@ final class AppCoordinator {
         let fn = FloatingNotificationManager()
         let port = UInt16(s.port > 0 ? s.port : 18765)
         let srv = HTTPServer(port: port)
+        let sm = SettingsManager()
 
         self.settings = s
         self.history = h
@@ -25,15 +32,24 @@ final class AppCoordinator {
         self.floatingNotifications = fn
         self.server = srv
         self.managementWindow = ManagementWindowController(coordinator: nil)
+        self.settingsManager = sm
 
         setupCallbacks()
         startServer()
 
-        // Wire up the management window controller
         managementWindow.setCoordinator(self)
 
-        // The app is configured as an LSUIElement in Info.plist, so the menu
-        // bar extra is created with the correct activation policy from launch.
+        // Seed health state (don't notify for pre-existing broken state)
+        let health = sm.checkHealth()
+        self.currentHealth = health
+        self.lastHealthySignature = health.signature
+
+        // Start watching settings.json for drift
+        let watcher = SettingsWatcher(fileURL: sm.settingsPath)
+        sm.watcher = watcher
+        watcher.onChange = { [weak self] in self?.handleSettingsChanged() }
+        watcher.start()
+        self.settingsWatcher = watcher
     }
 
     private func setupCallbacks() {
@@ -51,6 +67,7 @@ final class AppCoordinator {
                 case .stop:        message = "Claude 完成了任务"
                 case .notification: message = "Claude 等待你的输入"
                 case .stopFailure: message = "发生了 API 错误"
+                case .configBroken: message = "配置被覆盖，Hook 或状态栏丢失"
                 }
             }
 
@@ -80,6 +97,61 @@ final class AppCoordinator {
             options: [.idleSystemSleepDisabled, .idleDisplaySleepDisabled],
             reason: "Listening for Claude Code hooks"
         )
+    }
+
+    // MARK: - Config Drift Detection
+
+    /// Called by SettingsWatcher when settings.json changes externally.
+    private func handleSettingsChanged() {
+        let health = settingsManager.checkHealth()
+        let prevSignature = lastHealthySignature
+        currentHealth = health
+        lastHealthySignature = health.signature
+
+        // Seed: first observation records state without notifying
+        guard let prevSignature else { return }
+
+        // Edge-triggered: only notify on transition (signature changed while unhealthy)
+        if !health.isHealthy && prevSignature != health.signature && health.signature != prevSignature {
+            notifyConfigBroken(health: health)
+        }
+    }
+
+    private func notifyConfigBroken(health: ConfigHealth) {
+        let missing = health.items.filter { !$0.isPresent }.map(\.label)
+        let parts = missing + (health.statusLinePresent ? [] : ["statusLine"])
+        let message = "配置失效：\(parts.joined(separator: "、"))"
+
+        if settings.floatingNotificationEnabled {
+            floatingNotifications.show(event: .configBroken, message: message, project: nil)
+        }
+        if settings.systemNotificationEnabled {
+            notifications.postNotification(
+                event: .configBroken, message: message, soundEnabled: settings.soundEnabled
+            )
+        }
+        history.add(event: .configBroken, message: message, project: nil)
+
+        if settings.autoFixOnDrift {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2) { [weak self] in
+                self?.repairConfig()
+            }
+        }
+    }
+
+    /// One-click repair called from UI or auto-fix.
+    func repairConfig() {
+        settingsWatcher?.beginSelfWrite()
+        defer { settingsWatcher?.endSelfWrite() }
+        do {
+            try settingsManager.repairManaged()
+        } catch {
+            Logger(subsystem: "com.claude-notify", category: "Coordinator")
+                .error("repairManaged failed: \(error)")
+        }
+        let health = settingsManager.checkHealth()
+        currentHealth = health
+        lastHealthySignature = health.signature
     }
 
     /// Walk up from cwd to find the project root (containing .git or .claude).
@@ -133,15 +205,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 }
 
 final class StatusBarController: NSObject {
-    private static let panelWidth: CGFloat = 340
+    private static let panelWidth = MenuPanelLayout.panelWidth
     private let panelState = MenuPanelState()
     private let statusItem: NSStatusItem
     private let panel: NSPanel
+    private var panelFocusAutoCloser: PanelFocusAutoCloser?
 
     init(coordinator: AppCoordinator) {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
         panel = StatusPanel(
-            contentRect: NSRect(origin: .zero, size: Self.size(for: .main)),
+            contentRect: NSRect(
+                origin: .zero,
+                size: NSSize(width: MenuPanelLayout.panelWidth, height: MenuPanelLayout.panelMinHeight)
+            ),
             styleMask: [.borderless],
             backing: .buffered,
             defer: false
@@ -162,13 +238,10 @@ final class StatusBarController: NSObject {
             button.sendAction(on: [.leftMouseUp, .rightMouseUp])
         }
 
-        panel.contentViewController = NSHostingController(
+        let hostingView = NSHostingView(
             rootView: MenuBarView(
                 coordinator: coordinator,
-                panelState: panelState,
-                onPageChange: { [weak self] page in
-                    self?.resizePanel(for: page)
-                }
+                panelState: panelState
             )
                 .background(.regularMaterial)
                 .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
@@ -177,6 +250,9 @@ final class StatusBarController: NSObject {
                         .stroke(Color(nsColor: .separatorColor).opacity(0.35), lineWidth: 1)
                 }
         )
+        panel.contentView = hostingView
+        panel.minSize = NSSize(width: MenuPanelLayout.panelWidth, height: MenuPanelLayout.panelMinHeight)
+        panel.maxSize = NSSize(width: MenuPanelLayout.panelWidth, height: MenuPanelLayout.panelMaxHeight)
         panel.isReleasedWhenClosed = false
         panel.hidesOnDeactivate = false
         panel.isMovable = false
@@ -187,6 +263,19 @@ final class StatusBarController: NSObject {
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
         panel.titleVisibility = .hidden
         panel.titlebarAppearsTransparent = true
+        panelFocusAutoCloser = PanelFocusAutoCloser(panel: panel) { [weak self] in
+            self?.isPointerInsideStatusButton() ?? false
+        }
+
+        // Resize panel when SwiftUI content changes
+        hostingView.postsFrameChangedNotifications = true
+        NotificationCenter.default.addObserver(
+            forName: NSView.frameDidChangeNotification,
+            object: hostingView,
+            queue: .main
+        ) { [weak self] _ in
+            self?.resizePanelToContent()
+        }
     }
 
     @objc private func togglePopover(_ sender: Any?) {
@@ -219,32 +308,28 @@ final class StatusBarController: NSObject {
         panel.makeKeyAndOrderFront(nil)
     }
 
-    private func resizePanel(for page: MenuPage) {
-        let newSize = Self.size(for: page)
-        if panel.isVisible {
-            let frame = panel.frame
-            panel.setFrame(
-                NSRect(
-                    x: frame.minX,
-                    y: frame.maxY - newSize.height,
-                    width: newSize.width,
-                    height: newSize.height
-                ),
-                display: true,
-                animate: false
-            )
-        } else {
-            panel.setContentSize(newSize)
-        }
+    private func isPointerInsideStatusButton() -> Bool {
+        guard let button = statusItem.button, let buttonWindow = button.window else { return false }
+
+        let buttonFrame = buttonWindow.convertToScreen(button.convert(button.bounds, to: nil))
+        return buttonFrame.insetBy(dx: -4, dy: -4).contains(NSEvent.mouseLocation)
     }
 
-    private static func size(for page: MenuPage) -> NSSize {
-        switch page {
-        case .main:
-            return NSSize(width: panelWidth, height: 328)
-        case .setup, .settings:
-            return NSSize(width: panelWidth, height: 500)
-        }
+    /// Resize the panel to fit its SwiftUI content, pinned below the menu bar.
+    private func resizePanelToContent() {
+        guard let contentView = panel.contentView else { return }
+        let fittingHeight = contentView.fittingSize.height
+        let clampedHeight = max(panel.minSize.height, min(fittingHeight, panel.maxSize.height))
+        let width = Self.panelWidth
+
+        guard abs(panel.frame.height - clampedHeight) > 1 else { return }
+
+        let topY = panel.frame.maxY
+        panel.setFrame(
+            NSRect(x: panel.frame.origin.x, y: topY - clampedHeight, width: width, height: clampedHeight),
+            display: true,
+            animate: false
+        )
     }
 }
 
@@ -256,13 +341,4 @@ private final class StatusPanel: NSPanel {
 @Observable
 final class MenuPanelState {
     var page: MenuPage = .main
-
-    var height: CGFloat {
-        switch page {
-        case .main:
-            return 328
-        case .setup, .settings:
-            return 500
-        }
-    }
 }

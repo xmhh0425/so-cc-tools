@@ -77,6 +77,24 @@ struct SettingsPage: View {
 
                 Divider()
 
+                // 配置监控
+                Divider()
+
+                sectionHeader("配置监控")
+
+                Toggle("配置被覆盖时自动修复", isOn: Binding(
+                    get: { coordinator.settings.autoFixOnDrift },
+                    set: { coordinator.settings.autoFixOnDrift = $0 }
+                ))
+                .font(.system(size: 12))
+
+                if coordinator.settings.floatingNotificationEnabled {
+                    durationStepper("配置异常", value: Binding(
+                        get: { coordinator.settings.configBrokenDuration },
+                        set: { coordinator.settings.configBrokenDuration = $0 }
+                    ))
+                }
+
                 // 通用
                 sectionHeader("通用")
 

@@ -44,6 +44,7 @@ struct HistoryRowView: View {
         case .stop: .green
         case .notification: .orange
         case .stopFailure: .red
+        case .configBroken: .orange
         }
     }
 }
