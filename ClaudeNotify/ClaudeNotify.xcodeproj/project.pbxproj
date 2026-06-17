@@ -30,7 +30,6 @@
 		A10000000000000000000016 /* PassThroughWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000017 /* PassThroughWindow.swift */; };
 		A10000000000000000000018 /* ManagementWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000018 /* ManagementWindow.swift */; };
 		A10000000000000000000019 /* ManagementView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000019 /* ManagementView.swift */; };
-		A1000000000000000000001A /* DashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000001A /* DashboardView.swift */; };
 
 		A1000000000000000000001D /* NotificationHistoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000001D /* NotificationHistoryView.swift */; };
 		A1000000000000000000001E /* SettingsWatcher.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000001E /* SettingsWatcher.swift */; };
@@ -65,7 +64,6 @@
 		A20000000000000000000017 /* PassThroughWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PassThroughWindow.swift; sourceTree = "<group>"; };
 		A20000000000000000000018 /* ManagementWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ManagementWindow.swift; sourceTree = "<group>"; };
 		A20000000000000000000019 /* ManagementView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ManagementView.swift; sourceTree = "<group>"; };
-		A2000000000000000000001A /* DashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardView.swift; sourceTree = "<group>"; };
 
 		A2000000000000000000001D /* NotificationHistoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationHistoryView.swift; sourceTree = "<group>"; };
 		A2000000000000000000001E /* SettingsWatcher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsWatcher.swift; sourceTree = "<group>"; };
@@ -134,7 +132,6 @@
 				A20000000000000000000017 /* PassThroughWindow.swift */,
 				A20000000000000000000018 /* ManagementWindow.swift */,
 				A20000000000000000000019 /* ManagementView.swift */,
-				A2000000000000000000001A /* DashboardView.swift */,
 
 				A2000000000000000000001D /* NotificationHistoryView.swift */,
 				A2000000000000000000001E /* SettingsWatcher.swift */,
@@ -225,7 +222,6 @@
 				A10000000000000000000016 /* PassThroughWindow.swift in Sources */,
 				A10000000000000000000018 /* ManagementWindow.swift in Sources */,
 				A10000000000000000000019 /* ManagementView.swift in Sources */,
-				A1000000000000000000001A /* DashboardView.swift in Sources */,
 
 				A1000000000000000000001D /* NotificationHistoryView.swift in Sources */,
 				A1000000000000000000001E /* SettingsWatcher.swift in Sources */,

@@ -15,7 +15,7 @@ final class ManagementWindowController {
         self.coordinator = coordinator
     }
 
-    func showWindow(page: ManagementPage = .dashboard) {
+    func showWindow(page: ManagementPage = .config) {
         guard let coordinator else { return }
 
         if let window, window.isVisible {

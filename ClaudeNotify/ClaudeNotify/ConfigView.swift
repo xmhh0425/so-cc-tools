@@ -16,6 +16,7 @@ struct ConfigView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
                 headerSection
+                serviceCard
                 healthCard
                 hookListSection
                 statusLineSection
@@ -38,6 +39,43 @@ struct ConfigView: View {
             Spacer()
             Button("刷新") { refreshData() }
                 .controlSize(.small)
+        }
+    }
+
+    // MARK: - Service Card
+
+    private var serviceCard: some View {
+        GroupBox("服务状态") {
+            VStack(alignment: .leading, spacing: 10) {
+                serviceStatusRow(
+                    icon: "server.rack",
+                    label: "HTTP Server",
+                    status: coordinator.server.isRunning ? "运行中" : "未运行",
+                    color: coordinator.server.isRunning ? .green : .red
+                )
+                serviceStatusRow(
+                    icon: "network",
+                    label: "监听地址",
+                    status: "127.0.0.1:\(coordinator.settings.port)",
+                    color: .primary
+                )
+            }
+            .padding(.vertical, 4)
+        }
+    }
+
+    private func serviceStatusRow(icon: String, label: String, status: String, color: Color) -> some View {
+        HStack {
+            Image(systemName: icon)
+                .font(.system(size: 12))
+                .foregroundStyle(.secondary)
+                .frame(width: 18)
+            Text(label)
+                .font(.system(size: 12))
+            Spacer()
+            Text(status)
+                .font(.system(size: 12, design: .monospaced))
+                .foregroundStyle(color == .primary ? .secondary : color)
         }
     }
 

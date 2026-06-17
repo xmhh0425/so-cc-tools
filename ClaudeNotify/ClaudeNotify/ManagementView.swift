@@ -2,7 +2,6 @@ import SwiftUI
 
 /// Navigation pages for the management window sidebar.
 enum ManagementPage: String, CaseIterable, Identifiable {
-    case dashboard = "概览"
     case config = "配置"
     case notifications = "通知"
 
@@ -10,7 +9,6 @@ enum ManagementPage: String, CaseIterable, Identifiable {
 
     var icon: String {
         switch self {
-        case .dashboard: return "square.grid.2x2"
         case .config: return "gearshape.2"
         case .notifications: return "bell.badge"
         }
@@ -20,7 +18,7 @@ enum ManagementPage: String, CaseIterable, Identifiable {
 /// Root view for the management window: sidebar + content area.
 struct ManagementView: View {
     let coordinator: AppCoordinator
-    @State var selectedPage: ManagementPage = .dashboard
+    @State var selectedPage: ManagementPage = .config
 
     var body: some View {
         NavigationSplitView {
@@ -33,8 +31,6 @@ struct ManagementView: View {
         } detail: {
             Group {
                 switch selectedPage {
-                case .dashboard:
-                    DashboardView(coordinator: coordinator, settingsManager: coordinator.settingsManager)
                 case .config:
                     ConfigView(coordinator: coordinator, settingsManager: coordinator.settingsManager)
                 case .notifications:
