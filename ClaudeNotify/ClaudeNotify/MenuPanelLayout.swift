@@ -2,13 +2,13 @@ import CoreGraphics
 
 enum MenuPanelLayout {
     static let panelWidth: CGFloat = 340
-    static let panelMinHeight: CGFloat = 320
+    static let panelMinHeight: CGFloat = 260
     static let panelMaxHeight: CGFloat = 560
     static let historyRowHeight: CGFloat = 66
 
     private static let headerAndStatusHeight: CGFloat = 68
     private static let separatorsHeight: CGFloat = 3
-    private static let actionSectionHeightWithHistory: CGFloat = 159
+    private static let actionSectionHeightWithHistory: CGFloat = 95
     private static let mainChromeHeightWithHistory =
         headerAndStatusHeight + separatorsHeight + actionSectionHeightWithHistory
     private static var maxHistoryListHeight: CGFloat {
