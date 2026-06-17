@@ -137,8 +137,10 @@ final class SettingsWatcher {
     }
 
     deinit {
-        if fileDescriptor >= 0 {
-            close(fileDescriptor)
-        }
+        // Cancel source first — its cancel handler will close the fd.
+        // Do NOT close fd here to avoid double-close: if we close first,
+        // the OS may reuse the fd number, and the cancel handler would
+        // then close an unrelated file descriptor.
+        source?.cancel()
     }
 }
