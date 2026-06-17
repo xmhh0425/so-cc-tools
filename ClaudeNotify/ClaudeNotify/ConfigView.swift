@@ -282,6 +282,8 @@ struct ConfigView: View {
         statusLine = settingsManager.readStatusLine()
         statusLineEnabled = statusLine != nil
         statusLineInterval = statusLine?.refreshInterval ?? 5
+        // Sync coordinator health state so all views stay consistent
+        coordinator.currentHealth = settingsManager.checkHealth()
     }
 
     private func flashConfirmation() {

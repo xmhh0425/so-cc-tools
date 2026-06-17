@@ -234,7 +234,7 @@ final class StatusBarController: NSObject {
             button.sendAction(on: [.leftMouseUp, .rightMouseUp])
         }
 
-        let hostingController = NSHostingController(
+        let hostingView = NSHostingView(
             rootView: MenuBarView(
                 coordinator: coordinator,
                 panelState: panelState
@@ -246,8 +246,7 @@ final class StatusBarController: NSObject {
                         .stroke(Color(nsColor: .separatorColor).opacity(0.35), lineWidth: 1)
                 }
         )
-        hostingController.sizingOptions = .preferredContentSize
-        panel.contentViewController = hostingController
+        panel.contentView = hostingView
         panel.minSize = NSSize(width: 340, height: 200)
         panel.maxSize = NSSize(width: 340, height: 560)
         panel.isReleasedWhenClosed = false
@@ -261,14 +260,14 @@ final class StatusBarController: NSObject {
         panel.titleVisibility = .hidden
         panel.titlebarAppearsTransparent = true
 
-        // Keep panel anchored below menu bar when content resizes
-        panel.contentView?.postsFrameChangedNotifications = true
+        // Resize panel when SwiftUI content changes
+        hostingView.postsFrameChangedNotifications = true
         NotificationCenter.default.addObserver(
             forName: NSView.frameDidChangeNotification,
-            object: panel.contentView,
+            object: hostingView,
             queue: .main
         ) { [weak self] _ in
-            self?.pinPanelToMenuBar()
+            self?.resizePanelToContent()
         }
     }
 
@@ -302,16 +301,21 @@ final class StatusBarController: NSObject {
         panel.makeKeyAndOrderFront(nil)
     }
 
-    /// Re-pin the panel's top edge below the menu bar when content resizes.
-    private func pinPanelToMenuBar() {
-        guard panel.isVisible,
-              let button = statusItem.button, let buttonWindow = button.window else { return }
-        let buttonFrame = buttonWindow.convertToScreen(button.convert(button.bounds, to: nil))
-        let frame = panel.frame
-        let newY = buttonFrame.minY - frame.height - 8
-        if abs(frame.origin.y - newY) > 1 {
-            panel.setFrameOrigin(NSPoint(x: frame.origin.x, y: newY))
-        }
+    /// Resize the panel to fit its SwiftUI content, pinned below the menu bar.
+    private func resizePanelToContent() {
+        guard let contentView = panel.contentView else { return }
+        let fittingHeight = contentView.fittingSize.height
+        let clampedHeight = max(panel.minSize.height, min(fittingHeight, panel.maxSize.height))
+        let width = Self.panelWidth
+
+        guard abs(panel.frame.height - clampedHeight) > 1 else { return }
+
+        let topY = panel.frame.maxY
+        panel.setFrame(
+            NSRect(x: panel.frame.origin.x, y: topY - clampedHeight, width: width, height: clampedHeight),
+            display: true,
+            animate: false
+        )
     }
 }
 

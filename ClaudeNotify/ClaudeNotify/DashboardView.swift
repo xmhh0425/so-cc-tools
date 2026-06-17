@@ -63,30 +63,29 @@ struct DashboardView: View {
     // MARK: - Hook Summary Card
 
     private var hookSummaryCard: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("Hook 状态").font(.headline)
-            hookSummaryRow(event: "Stop", label: "Stop（任务完成）", typeLabel: "HTTP", targetContains: "/hook/stop")
-            hookSummaryRow(event: "Notification", label: "Notification（等待输入）", typeLabel: "HTTP", targetContains: "/hook/notification")
-            hookSummaryRow(event: "StopFailure", label: "StopFailure（API 错误）", typeLabel: "HTTP", targetContains: "/hook/stopfailure")
-            hookSummaryRow(event: "PreToolUse", label: "PreToolUse（Skill 追踪）", typeLabel: "command", targetContains: "hook-pre-skill")
-            hookSummaryRow(event: "UserPromptExpansion", label: "UserPromptExpansion（命令追踪）", typeLabel: "command", targetContains: "hook-skill-tracker")
-        }
-    }
-
-    private func hookSummaryRow(event: String, label: String, typeLabel: String, targetContains: String?) -> some View {
-        let installed = hooks.contains { hook in
-            hook.event == event && (targetContains == nil || hook.target.contains(targetContains!))
-        }
-        return HStack {
-            Image(systemName: installed ? "checkmark.circle.fill" : "circle.dashed")
-                .foregroundStyle(installed ? .green : .secondary)
-                .font(.system(size: 13))
-            Text(label)
-                .font(.system(size: 12))
-            Spacer()
-            Text(installed ? typeLabel : "未安装")
-                .font(.system(size: 11))
-                .foregroundStyle(installed ? Color.secondary : Color.orange)
+        GroupBox("Hook 状态") {
+            if let health = coordinator.currentHealth {
+                VStack(alignment: .leading, spacing: 8) {
+                    ForEach(health.items) { item in
+                        HStack {
+                            Image(systemName: item.isPresent ? "checkmark.circle.fill" : "circle.dashed")
+                                .foregroundStyle(item.isPresent ? .green : .secondary)
+                                .font(.system(size: 13))
+                            Text(item.label)
+                                .font(.system(size: 12))
+                            Spacer()
+                            Text(item.isPresent ? (item.encoding ?? "已安装") : "未安装")
+                                .font(.system(size: 11))
+                                .foregroundStyle(item.isPresent ? Color.secondary : Color.orange)
+                        }
+                    }
+                }
+                .padding(.vertical, 4)
+            } else {
+                Text("正在检查…")
+                    .font(.system(size: 12))
+                    .foregroundStyle(.secondary)
+            }
         }
     }
 
@@ -94,11 +93,12 @@ struct DashboardView: View {
 
     private var statusLineCard: some View {
         GroupBox("状态栏") {
+            let present = coordinator.currentHealth?.statusLinePresent ?? false
             HStack {
-                Image(systemName: statusLine != nil ? "checkmark.circle.fill" : "circle.dashed")
-                    .foregroundStyle(statusLine != nil ? .green : .secondary)
+                Image(systemName: present ? "checkmark.circle.fill" : "circle.dashed")
+                    .foregroundStyle(present ? .green : .secondary)
                     .font(.system(size: 13))
-                Text(statusLine != nil ? "已配置" : "未配置")
+                Text(present ? "已配置" : "未配置")
                     .font(.system(size: 12))
                 Spacer()
                 if let sl = statusLine {
@@ -157,5 +157,8 @@ struct DashboardView: View {
     private func refreshData() {
         hooks = settingsManager.readAllHooks()
         statusLine = settingsManager.readStatusLine()
+        // Sync coordinator health state so DashboardView and ConfigView stay consistent
+        let health = settingsManager.checkHealth()
+        coordinator.currentHealth = health
     }
 }
