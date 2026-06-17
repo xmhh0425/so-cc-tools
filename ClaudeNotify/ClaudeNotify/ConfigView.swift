@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Unified configuration page: health summary + one-click fix + per-item toggles.
+/// Unified configuration page: grouped feature toggles + editable settings.json.
 struct ConfigView: View {
     let coordinator: AppCoordinator
     let settingsManager: SettingsManager
@@ -9,267 +9,311 @@ struct ConfigView: View {
     @State private var statusLine: StatusLineConfig?
     @State private var statusLineEnabled = false
     @State private var statusLineInterval = 5
-    @State private var showSaveConfirmation = false
-    @State private var isRepairing = false
+    @State private var editorContent: String = ""
+    @State private var hasUnsavedChanges = false
+    @State private var editorError: String?
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 20) {
-                headerSection
-                serviceCard
-                healthCard
-                hookListSection
+            VStack(alignment: .leading, spacing: 24) {
+                statusBanner
+                notificationSection
                 statusLineSection
+                configEditorSection
             }
             .padding(24)
         }
         .onAppear { refreshData() }
     }
 
-    // MARK: - Header
+    // MARK: - Server Status
 
-    private var headerSection: some View {
-        HStack {
-            Image(systemName: "gearshape.2.fill")
-                .font(.title2)
-                .foregroundStyle(.blue)
-            Text("配置")
-                .font(.title2)
-                .fontWeight(.semibold)
-            Spacer()
-            Button("刷新") { refreshData() }
-                .controlSize(.small)
-        }
-    }
-
-    // MARK: - Service Card
-
-    private var serviceCard: some View {
-        GroupBox("服务状态") {
-            VStack(alignment: .leading, spacing: 10) {
-                serviceStatusRow(
-                    icon: "server.rack",
-                    label: "HTTP Server",
-                    status: coordinator.server.isRunning ? "运行中" : "未运行",
-                    color: coordinator.server.isRunning ? .green : .red
-                )
-                serviceStatusRow(
-                    icon: "network",
-                    label: "监听地址",
-                    status: "127.0.0.1:\(coordinator.settings.port)",
-                    color: .primary
-                )
-            }
-            .padding(.vertical, 4)
-        }
-    }
-
-    private func serviceStatusRow(icon: String, label: String, status: String, color: Color) -> some View {
-        HStack {
-            Image(systemName: icon)
-                .font(.system(size: 12))
+    private var statusBanner: some View {
+        HStack(spacing: 6) {
+            Circle()
+                .fill(coordinator.server.isRunning ? Color.green : Color.red)
+                .frame(width: 7, height: 7)
+            Text(coordinator.server.isRunning ? "运行中" : "未运行")
+                .font(.system(size: 11, weight: .medium))
+                .foregroundStyle(coordinator.server.isRunning ? .green : .red)
+            Text("·")
+                .foregroundStyle(.quaternary)
+            Text("127.0.0.1:\(coordinator.settings.port)")
+                .font(.system(size: 11, design: .monospaced))
                 .foregroundStyle(.secondary)
-                .frame(width: 18)
-            Text(label)
-                .font(.system(size: 12))
-            Spacer()
-            Text(status)
-                .font(.system(size: 12, design: .monospaced))
-                .foregroundStyle(color == .primary ? .secondary : color)
         }
     }
 
-    // MARK: - Health Summary Card
+    // MARK: - Notification Section
 
-    private var healthCard: some View {
-        GroupBox {
-            VStack(alignment: .leading, spacing: 12) {
-                if let health = coordinator.currentHealth {
-                    HStack(spacing: 8) {
-                        Image(systemName: health.isHealthy ? "checkmark.shield.fill" : "exclamationmark.shield.fill")
-                            .font(.title3)
-                            .foregroundStyle(health.isHealthy ? .green : .orange)
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(health.isHealthy ? "配置正常" : "检测到 \(health.missingCount) 项配置缺失")
-                                .font(.system(size: 13, weight: .semibold))
-                            if !health.isHealthy {
-                                let missing = health.items.filter { !$0.isPresent }.map(\.label)
-                                    + (health.statusLinePresent ? [] : ["statusLine"])
-                                Text(missing.joined(separator: "、"))
-                                    .font(.system(size: 11))
-                                    .foregroundStyle(.secondary)
-                                    .lineLimit(2)
-                            }
-                        }
-                        Spacer()
+    private var notificationSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            SectionHeader("通知")
 
-                        if !health.isHealthy {
-                            Button {
-                                repairConfig()
-                            } label: {
-                                Label(isRepairing ? "修复中…" : "一键修复", systemImage: "wrench.and.screwdriver")
-                                    .font(.system(size: 12, weight: .medium))
-                            }
-                            .buttonStyle(.borderedProminent)
-                            .controlSize(.small)
-                            .disabled(isRepairing)
-                        }
-                    }
+            toggleCard {
+                settingsToggleRow(
+                    label: "通知 Hooks",
+                    description: "任务完成、等待输入、API 错误时发送通知",
+                    isOn: isAllNotificationHooksPresent()
+                ) {
+                    toggleAllNotificationHooks(install: !isAllNotificationHooksPresent())
+                }
 
-                    Divider()
+                Divider()
 
-                    Toggle("配置被覆盖时自动修复", isOn: Binding(
-                        get: { coordinator.settings.autoFixOnDrift },
-                        set: { coordinator.settings.autoFixOnDrift = $0 }
-                    ))
-                    .font(.system(size: 12))
+                settingsToggleRow(
+                    label: "桌面浮窗通知",
+                    description: "任务完成或需要输入时显示浮动通知窗口",
+                    isOn: coordinator.settings.floatingNotificationEnabled
+                ) {
+                    coordinator.settings.floatingNotificationEnabled.toggle()
+                }
 
-                    Text("CC Switch 等工具可能覆盖配置。开启后检测到配置失效时自动修复。")
-                        .font(.system(size: 10))
-                        .foregroundStyle(.tertiary)
-                } else {
-                    Text("正在检查配置…")
-                        .font(.system(size: 12))
-                        .foregroundStyle(.secondary)
+                Divider()
+
+                settingsToggleRow(
+                    label: "系统通知",
+                    description: "通过 macOS 系统通知中心发送通知",
+                    isOn: coordinator.settings.systemNotificationEnabled
+                ) {
+                    coordinator.settings.systemNotificationEnabled.toggle()
+                }
+
+                Divider()
+
+                settingsToggleRow(
+                    label: "提示音",
+                    description: "收到通知时播放提示音",
+                    isOn: coordinator.settings.soundEnabled
+                ) {
+                    coordinator.settings.soundEnabled.toggle()
                 }
             }
-            .padding(.vertical, 4)
         }
-    }
-
-    // MARK: - Per-item Hook List
-
-    private var hookListSection: some View {
-        GroupBox("Hook 配置") {
-            VStack(alignment: .leading, spacing: 0) {
-                // Notification hooks
-                ForEach(["Stop", "Notification", "StopFailure"], id: \.self) { event in
-                    let label = eventLabel(event)
-                    let isPresent = isHookPresent(event: event)
-                    hookRow(event: event, label: label, isPresent: isPresent) {
-                        toggleNotificationHook(event: event)
-                    }
-                    Divider().padding(.horizontal, -8)
-                }
-
-                // Command hooks
-                ForEach(["PreToolUse", "UserPromptExpansion"], id: \.self) { event in
-                    let label = eventLabel(event)
-                    let isPresent = isHookPresent(event: event)
-                    hookRow(event: event, label: label, isPresent: isPresent) {
-                        toggleCommandHook(event: event)
-                    }
-                    if event != "UserPromptExpansion" {
-                        Divider().padding(.horizontal, -8)
-                    }
-                }
-            }
-            .padding(.vertical, 4)
-        }
-    }
-
-    private func hookRow(event: String, label: String, isPresent: Bool, toggle: @escaping () -> Void) -> some View {
-        HStack(spacing: 12) {
-            Image(systemName: isPresent ? "checkmark.circle.fill" : "circle.dashed")
-                .foregroundStyle(isPresent ? .green : .secondary)
-                .font(.system(size: 14))
-            Text(label)
-                .font(.system(size: 12, weight: .medium))
-            Spacer()
-            Button(isPresent ? "卸载" : "安装") { toggle() }
-                .controlSize(.small)
-        }
-        .padding(.vertical, 6)
-        .padding(.horizontal, 8)
     }
 
     // MARK: - StatusLine Section
 
     private var statusLineSection: some View {
-        GroupBox("状态栏（statusLine）") {
-            VStack(alignment: .leading, spacing: 10) {
-                Toggle("启用状态栏", isOn: $statusLineEnabled)
-                    .font(.system(size: 12))
-                    .onChange(of: statusLineEnabled) { _, _ in saveStatusLine() }
+        VStack(alignment: .leading, spacing: 10) {
+            SectionHeader("状态栏")
+
+            toggleCard {
+                settingsToggleRow(
+                    label: "启用状态栏",
+                    description: "在终端显示模型信息、上下文用量、Skill 历史",
+                    isOn: statusLineEnabled
+                ) {
+                    statusLineEnabled.toggle()
+                    saveStatusLine()
+                }
 
                 if statusLineEnabled {
+                    Divider()
+
                     HStack {
                         Text("刷新间隔")
-                            .font(.system(size: 12))
+                            .font(.system(size: 13))
                         Spacer()
                         Stepper("\(statusLineInterval) 秒", value: $statusLineInterval, in: 1...30)
                             .font(.system(size: 12))
+                            .fixedSize()
                             .onChange(of: statusLineInterval) { _, _ in saveStatusLine() }
                     }
+                    .padding(.vertical, 6)
 
-                    Text("命令：\(statusLine?.command ?? "未配置")")
+                    Divider()
+
+                    settingsToggleRow(
+                        label: "Skill 追踪",
+                        description: "PreToolUse — 在状态栏记录 Skill 使用历史",
+                        isOn: isCommandHookPresent(key: "hook-pre-skill")
+                    ) {
+                        toggleCommandHook(event: "PreToolUse")
+                    }
+
+                    Divider()
+
+                    settingsToggleRow(
+                        label: "命令追踪",
+                        description: "UserPromptExpansion — 追踪 / 命令执行",
+                        isOn: isCommandHookPresent(key: "hook-skill-tracker")
+                    ) {
+                        toggleCommandHook(event: "UserPromptExpansion")
+                    }
+                }
+            }
+        }
+    }
+
+    // MARK: - Config Editor
+
+    private var configEditorSection: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("配置文件")
+                        .font(.system(size: 13, weight: .semibold))
+                    Text(settingsManager.settingsPath.path)
                         .font(.system(size: 10, design: .monospaced))
                         .foregroundStyle(.tertiary)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
                 }
-
-                Text("状态栏通过终端显示模型信息、上下文用量、Skill 历史。")
-                    .font(.system(size: 10))
-                    .foregroundStyle(.tertiary)
+                Spacer()
+                HStack(spacing: 8) {
+                    if hasUnsavedChanges {
+                        Button("还原") {
+                            editorContent = readRawJSON()
+                            hasUnsavedChanges = false
+                            editorError = nil
+                        }
+                        .controlSize(.small)
+                    }
+                    Button {
+                        saveEditorContent()
+                    } label: {
+                        Label("保存", systemImage: "square.and.arrow.down")
+                            .font(.system(size: 12, weight: .medium))
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.small)
+                    .disabled(!hasUnsavedChanges)
+                }
             }
-            .padding(.vertical, 4)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 10)
+
+            Divider()
+
+            if let error = editorError {
+                HStack(spacing: 6) {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .foregroundStyle(.orange)
+                        .font(.system(size: 11))
+                    Text(error)
+                        .font(.system(size: 11))
+                        .foregroundStyle(.orange)
+                }
+                .padding(.horizontal, 14)
+                .padding(.vertical, 8)
+                .background(Color.orange.opacity(0.08))
+            }
+
+            TextEditor(text: $editorContent)
+                .font(.system(size: 12, design: .monospaced))
+                .scrollContentBackground(.hidden)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 8)
+                .frame(minHeight: 200, maxHeight: 400)
+                .onChange(of: editorContent) { _, _ in
+                    hasUnsavedChanges = editorContent != readRawJSON()
+                    if hasUnsavedChanges { validateJSON(editorContent) }
+                }
+        }
+        .background(Color(nsColor: .controlBackgroundColor))
+        .clipShape(RoundedRectangle(cornerRadius: 8))
+    }
+
+    // MARK: - Shared Components
+
+    private func SectionHeader(_ title: String) -> some View {
+        Text(title)
+            .font(.system(size: 11, weight: .semibold))
+            .foregroundStyle(.secondary)
+            .textCase(.uppercase)
+    }
+
+    private func toggleCard<Content: View>(@ViewBuilder content: () -> Content) -> some View {
+        VStack(spacing: 0) {
+            content()
+        }
+        .padding(.horizontal, 14)
+        .background(Color(nsColor: .controlBackgroundColor))
+        .clipShape(RoundedRectangle(cornerRadius: 8))
+    }
+
+    /// A settings-style toggle row: label + description left, switch right.
+    private func settingsToggleRow(
+        label: String,
+        description: String,
+        isOn: Bool,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            HStack {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(label)
+                        .font(.system(size: 13))
+                        .foregroundStyle(.primary)
+                    Text(description)
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer()
+                Capsule()
+                    .fill(isOn ? Color.accentColor : Color(.separatorColor))
+                    .frame(width: 38, height: 22)
+                    .overlay(
+                        Circle()
+                            .fill(.white)
+                            .frame(width: 18, height: 18)
+                            .shadow(color: .black.opacity(0.15), radius: 1)
+                            .offset(x: isOn ? 8 : -8)
+                    )
+                    .animation(.easeInOut(duration: 0.15), value: isOn)
+            }
+            .padding(.vertical, 8)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+
+    // MARK: - Hook Queries
+
+    private func isAllNotificationHooksPresent() -> Bool {
+        ["Stop", "Notification", "StopFailure"].allSatisfy {
+            isNotificationHookPresent(event: $0)
         }
     }
 
-    // MARK: - Actions
-
-    private func isHookPresent(event: String) -> Bool {
-        hooks.contains { h in
-            h.event == event && (
-                (h.type == .http && h.target.contains("/hook/"))
-                || (h.type == .command && h.target.contains(commandDedupKey(event)))
-            )
-        }
+    private func isNotificationHookPresent(event: String) -> Bool {
+        hooks.contains { $0.event == event && $0.type == .http && $0.target.contains("/hook/") }
     }
 
-    private func commandDedupKey(_ event: String) -> String {
-        switch event {
-        case "PreToolUse": return "hook-pre-skill"
-        case "UserPromptExpansion": return "hook-skill-tracker"
-        case "Stop", "Notification", "StopFailure": return "notify-claude-notify"
-        default: return event
-        }
+    private func isCommandHookPresent(key: String) -> Bool {
+        hooks.contains { $0.type == .command && $0.target.contains(key) }
     }
 
-    private func eventLabel(_ event: String) -> String {
-        switch event {
-        case "Stop": return "Stop（任务完成）"
-        case "Notification": return "Notification（等待输入）"
-        case "StopFailure": return "StopFailure（API 错误）"
-        case "PreToolUse": return "PreToolUse（Skill 追踪）"
-        case "UserPromptExpansion": return "UserPromptExpansion（命令追踪）"
-        default: return event
-        }
-    }
+    // MARK: - Toggle Actions
 
-    private func toggleNotificationHook(event: String) {
-        let hookPath: String
-        switch event {
-        case "Stop": hookPath = "stop"
-        case "Notification": hookPath = "notification"
-        case "StopFailure": hookPath = "stopfailure"
-        default: return
-        }
+    private func toggleAllNotificationHooks(install: Bool) {
+        let events = ["Stop", "Notification", "StopFailure"]
+        let hookPaths = ["stop", "notification", "stopfailure"]
         do {
-            if isHookPresent(event: event) {
-                try settingsManager.uninstallHook(event: event, targetContains: "/hook/")
+            if install {
+                for (event, path) in zip(events, hookPaths) {
+                    let config = HookConfig(
+                        event: event, matcher: "", type: .http,
+                        target: "http://127.0.0.1:\(coordinator.settings.port)/hook/\(path)"
+                    )
+                    try settingsManager.ensureHook(config)
+                }
             } else {
-                let config = HookConfig(event: event, matcher: "", type: .http, target: "http://127.0.0.1:\(coordinator.settings.port)/hook/\(hookPath)")
-                try settingsManager.ensureHook(config)
+                for event in events {
+                    try settingsManager.uninstallHook(event: event, targetContains: "/hook/")
+                }
             }
             refreshData()
         } catch {
-            print("Error: \(error)")
+            print("Toggle notification hooks error: \(error)")
         }
     }
 
     private func toggleCommandHook(event: String) {
         do {
-            if isHookPresent(event: event) {
+            if isCommandHookPresent(key: commandDedupKey(event)) {
                 try settingsManager.uninstallHook(event: event, targetContains: commandDedupKey(event))
             } else {
                 let existing = hooks.first { $0.event == event && $0.type == .command }
@@ -289,17 +333,19 @@ struct ConfigView: View {
             }
             refreshData()
         } catch {
-            print("Error: \(error)")
+            print("Toggle command hook error: \(error)")
         }
     }
 
-    private func repairConfig() {
-        isRepairing = true
-        coordinator.repairConfig()
-        refreshData()
-        isRepairing = false
-        flashConfirmation()
+    private func commandDedupKey(_ event: String) -> String {
+        switch event {
+        case "PreToolUse": return "hook-pre-skill"
+        case "UserPromptExpansion": return "hook-skill-tracker"
+        default: return event
+        }
     }
+
+    // MARK: - Actions
 
     private func saveStatusLine() {
         if statusLineEnabled {
@@ -312,7 +358,37 @@ struct ConfigView: View {
         } else {
             try? settingsManager.setStatusLine(nil)
         }
-        flashConfirmation()
+    }
+
+    private func saveEditorContent() {
+        guard let data = editorContent.data(using: .utf8) else {
+            editorError = "编码错误"
+            return
+        }
+        guard (try? JSONSerialization.jsonObject(with: data)) != nil else {
+            editorError = "JSON 格式无效，无法保存"
+            return
+        }
+        do {
+            try data.write(to: settingsManager.settingsPath, options: .atomic)
+            hasUnsavedChanges = false
+            editorError = nil
+            refreshData()
+        } catch {
+            editorError = "保存失败: \(error.localizedDescription)"
+        }
+    }
+
+    private func validateJSON(_ text: String) {
+        guard let data = text.data(using: .utf8) else {
+            editorError = "编码错误"
+            return
+        }
+        if (try? JSONSerialization.jsonObject(with: data)) != nil {
+            editorError = nil
+        } else {
+            editorError = "JSON 格式无效"
+        }
     }
 
     private func refreshData() {
@@ -320,14 +396,20 @@ struct ConfigView: View {
         statusLine = settingsManager.readStatusLine()
         statusLineEnabled = statusLine != nil
         statusLineInterval = statusLine?.refreshInterval ?? 5
-        // Sync coordinator health state so all views stay consistent
         coordinator.currentHealth = settingsManager.checkHealth()
+        let raw = readRawJSON()
+        editorContent = raw
+        hasUnsavedChanges = false
+        editorError = nil
     }
 
-    private func flashConfirmation() {
-        showSaveConfirmation = true
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
-            showSaveConfirmation = false
+    private func readRawJSON() -> String {
+        let path = settingsManager.settingsPath
+        guard FileManager.default.fileExists(atPath: path.path),
+              let data = try? Data(contentsOf: path),
+              let content = String(data: data, encoding: .utf8) else {
+            return "{\n  \n}"
         }
+        return content
     }
 }
