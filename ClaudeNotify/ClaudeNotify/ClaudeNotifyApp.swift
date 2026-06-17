@@ -112,7 +112,7 @@ final class AppCoordinator {
         guard let prevSignature else { return }
 
         // Edge-triggered: only notify on transition (signature changed while unhealthy)
-        if !health.isHealthy && prevSignature != health.signature && health.signature != prevSignature {
+        if !health.isHealthy && prevSignature != health.signature {
             notifyConfigBroken(health: health)
         }
     }
