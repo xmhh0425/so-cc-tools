@@ -33,10 +33,13 @@ final class HistoryStore {
 
         // Debounced save
         saveTask?.cancel()
+        // Capture a snapshot while still on the calling thread (main),
+        // so the Task reads a consistent copy instead of racing with future mutations.
+        let snapshot = records
         saveTask = Task { [weak self] in
             try? await Task.sleep(for: .milliseconds(500))
             guard !Task.isCancelled else { return }
-            self?.save()
+            self?.saveSnapshot(snapshot)
         }
     }
 
@@ -61,6 +64,16 @@ final class HistoryStore {
     private func save() {
         do {
             let data = try JSONEncoder().encode(records)
+            try data.write(to: fileURL, options: .atomic)
+        } catch {
+            logger.error("Failed to save history: \(error)")
+        }
+    }
+
+    /// Save a pre-captured snapshot — safe to call from any thread.
+    private func saveSnapshot(_ snapshot: [NotificationRecord]) {
+        do {
+            let data = try JSONEncoder().encode(snapshot)
             try data.write(to: fileURL, options: .atomic)
         } catch {
             logger.error("Failed to save history: \(error)")
