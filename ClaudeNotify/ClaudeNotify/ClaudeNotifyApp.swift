@@ -205,15 +205,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 }
 
 final class StatusBarController: NSObject {
-    private static let panelWidth: CGFloat = 340
+    private static let panelWidth = MenuPanelLayout.panelWidth
     private let panelState = MenuPanelState()
     private let statusItem: NSStatusItem
     private let panel: NSPanel
+    private var panelFocusAutoCloser: PanelFocusAutoCloser?
 
     init(coordinator: AppCoordinator) {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
         panel = StatusPanel(
-            contentRect: NSRect(origin: .zero, size: NSSize(width: 340, height: 320)),
+            contentRect: NSRect(
+                origin: .zero,
+                size: NSSize(width: MenuPanelLayout.panelWidth, height: MenuPanelLayout.panelMinHeight)
+            ),
             styleMask: [.borderless],
             backing: .buffered,
             defer: false
@@ -247,8 +251,8 @@ final class StatusBarController: NSObject {
                 }
         )
         panel.contentView = hostingView
-        panel.minSize = NSSize(width: 340, height: 200)
-        panel.maxSize = NSSize(width: 340, height: 560)
+        panel.minSize = NSSize(width: MenuPanelLayout.panelWidth, height: MenuPanelLayout.panelMinHeight)
+        panel.maxSize = NSSize(width: MenuPanelLayout.panelWidth, height: MenuPanelLayout.panelMaxHeight)
         panel.isReleasedWhenClosed = false
         panel.hidesOnDeactivate = false
         panel.isMovable = false
@@ -259,6 +263,9 @@ final class StatusBarController: NSObject {
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
         panel.titleVisibility = .hidden
         panel.titlebarAppearsTransparent = true
+        panelFocusAutoCloser = PanelFocusAutoCloser(panel: panel) { [weak self] in
+            self?.isPointerInsideStatusButton() ?? false
+        }
 
         // Resize panel when SwiftUI content changes
         hostingView.postsFrameChangedNotifications = true
@@ -299,6 +306,13 @@ final class StatusBarController: NSObject {
         panel.setFrameOrigin(origin)
         NSApp.activate(ignoringOtherApps: true)
         panel.makeKeyAndOrderFront(nil)
+    }
+
+    private func isPointerInsideStatusButton() -> Bool {
+        guard let button = statusItem.button, let buttonWindow = button.window else { return false }
+
+        let buttonFrame = buttonWindow.convertToScreen(button.convert(button.bounds, to: nil))
+        return buttonFrame.insetBy(dx: -4, dy: -4).contains(NSEvent.mouseLocation)
     }
 
     /// Resize the panel to fit its SwiftUI content, pinned below the menu bar.

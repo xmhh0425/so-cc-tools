@@ -13,7 +13,7 @@ struct MenuBarView: View {
                 SettingsPage(coordinator: coordinator, page: pageBinding)
             }
         }
-        .frame(width: 340, alignment: .top)
+        .frame(width: MenuPanelLayout.panelWidth, alignment: .top)
         .animation(.easeInOut(duration: 0.15), value: panelState.page)
     }
 
@@ -42,6 +42,13 @@ struct MenuBarView: View {
             Divider()
             actionSection
         }
+        .frame(
+            height: MenuPanelLayout.mainPanelHeight(
+                recordCount: coordinator.history.records.count,
+                displayLimit: coordinator.settings.maxHistoryDisplay
+            ),
+            alignment: .top
+        )
     }
 
     private var headerSection: some View {
@@ -103,7 +110,12 @@ struct MenuBarView: View {
                 }
             }
         }
-        .frame(maxHeight: 80)
+        .frame(
+            height: MenuPanelLayout.historyListHeight(
+                recordCount: coordinator.history.records.count,
+                displayLimit: coordinator.settings.maxHistoryDisplay
+            )
+        )
     }
 
     private var actionSection: some View {
