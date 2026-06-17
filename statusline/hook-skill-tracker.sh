@@ -16,7 +16,7 @@ cmd=$(echo "$input" | grep -o '<command-name>[^<]*</command-name>' 2>/dev/null \
 
 # Fallback: if no command-name tag, check for /command pattern
 if [ -z "$cmd" ]; then
-  cmd=$(echo "$input" | grep -oP '(?<=^/)\S+' 2>/dev/null || true)
+  cmd=$(printf '%s' "$input" | sed -n 's|^/\([^ ]*\).*|\1|p' 2>/dev/null || true)
 fi
 
 if [ -n "$cmd" ]; then
