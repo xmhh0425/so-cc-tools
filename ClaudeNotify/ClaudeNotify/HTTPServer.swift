@@ -16,6 +16,7 @@ final class HTTPServer {
 
     private var listener: NWListener?
     private var activeConnections: [ObjectIdentifier: NWConnection] = [:]
+    private let connectionQueue = DispatchQueue(label: "com.claude-notify.connections")
     private let port: UInt16
     private let logger = Logger(subsystem: "com.claude-notify", category: "HTTPServer")
 
@@ -42,15 +43,21 @@ final class HTTPServer {
                 guard let self else { return }
                 switch state {
                 case .ready:
-                    self.isRunning = true
-                    self.lastError = nil
+                    DispatchQueue.main.async {
+                        self.isRunning = true
+                        self.lastError = nil
+                    }
                     self.logger.info("Server listening on 127.0.0.1:\(self.port)")
                 case .failed(let error):
-                    self.isRunning = false
-                    self.lastError = "Server failed: \(error.localizedDescription)"
+                    DispatchQueue.main.async {
+                        self.isRunning = false
+                        self.lastError = "Server failed: \(error.localizedDescription)"
+                    }
                     self.logger.error("Server failed: \(error)")
                 case .cancelled:
-                    self.isRunning = false
+                    DispatchQueue.main.async {
+                        self.isRunning = false
+                    }
                 default:
                     break
                 }
@@ -75,18 +82,18 @@ final class HTTPServer {
 
     private func handleNewConnection(_ connection: NWConnection) {
         let id = ObjectIdentifier(connection)
-        activeConnections[id] = connection
+        connectionQueue.sync { activeConnections[id] = connection }
 
         connection.stateUpdateHandler = { [weak self] state in
             switch state {
             case .failed, .cancelled:
-                self?.activeConnections.removeValue(forKey: id)
+                self?.connectionQueue.sync { self?.activeConnections.removeValue(forKey: id) }
             default:
                 break
             }
         }
 
-        connection.start(queue: DispatchQueue(label: "com.claude-notify.conn", qos: .userInitiated))
+        connection.start(queue: DispatchQueue(label: "com.claude-notify.conn.\(id)", qos: .userInitiated))
 
         // Use a reference-type wrapper so the closure can mutate the accumulated data
         let buffer = DataBuffer()
@@ -104,7 +111,9 @@ final class HTTPServer {
             if let error {
                 self.logger.error("Receive error: \(error)")
                 connection.cancel()
-                self.activeConnections.removeValue(forKey: ObjectIdentifier(connection))
+                self.connectionQueue.sync {
+                    self.activeConnections.removeValue(forKey: ObjectIdentifier(connection))
+                }
                 return
             }
 
@@ -117,7 +126,9 @@ final class HTTPServer {
             if isComplete {
                 // Connection closed before we got a complete request
                 connection.cancel()
-                self.activeConnections.removeValue(forKey: ObjectIdentifier(connection))
+                self.connectionQueue.sync {
+                    self.activeConnections.removeValue(forKey: ObjectIdentifier(connection))
+                }
                 return
             }
 
@@ -177,7 +188,9 @@ final class HTTPServer {
         let response = "HTTP/1.1 \(statusCode) \(statusText)\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
         connection.send(content: response.data(using: .utf8), completion: .contentProcessed { [weak self] _ in
             connection.cancel()
-            self?.activeConnections.removeValue(forKey: ObjectIdentifier(connection))
+            self?.connectionQueue.sync {
+                self?.activeConnections.removeValue(forKey: ObjectIdentifier(connection))
+            }
         })
     }
 }
