@@ -107,12 +107,6 @@ struct MenuBarView: View {
             actionRow(icon: "gearshape.2", title: "管理") {
                 coordinator.managementWindow.showWindow()
             }
-            actionRow(icon: "wrench.and.screwdriver", title: "配置") {
-                coordinator.managementWindow.showWindow(page: .config)
-            }
-            actionRow(icon: "gear", title: "设置") {
-                coordinator.managementWindow.showWindow(page: .notifications)
-            }
             if !coordinator.history.records.isEmpty {
                 actionRow(icon: "trash", title: "清空历史") {
                     coordinator.history.clearAll()
