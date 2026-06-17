@@ -1,4 +1,5 @@
 import SwiftUI
+import ServiceManagement
 
 /// Notification history page: full history list, filtering, and notification settings.
 struct NotificationHistoryView: View {
@@ -11,6 +12,7 @@ struct NotificationHistoryView: View {
             VStack(alignment: .leading, spacing: 20) {
                 headerSection
                 notificationSettingsCard
+                generalSettingsCard
 
                 if filteredRecords.isEmpty {
                     emptyState
@@ -116,6 +118,31 @@ struct NotificationHistoryView: View {
         }
     }
 
+    // MARK: - General Settings Card
+
+    private var generalSettingsCard: some View {
+        GroupBox("通用") {
+            VStack(alignment: .leading, spacing: 10) {
+                Toggle("登录时启动", isOn: Binding(
+                    get: { coordinator.settings.launchAtLogin },
+                    set: { coordinator.settings.launchAtLogin = $0; setLaunchAtLogin($0) }
+                ))
+                .font(.system(size: 12))
+
+                Stepper(
+                    "历史记录：\(coordinator.settings.maxHistoryDisplay) 条",
+                    value: Binding(
+                        get: { coordinator.settings.maxHistoryDisplay },
+                        set: { coordinator.settings.maxHistoryDisplay = $0 }
+                    ),
+                    in: 5...50
+                )
+                .font(.system(size: 12))
+            }
+            .padding(.vertical, 4)
+        }
+    }
+
     // MARK: - History List
 
     private var historyList: some View {
@@ -163,5 +190,13 @@ struct NotificationHistoryView: View {
             step: 5
         )
         .font(.system(size: 11))
+    }
+
+    private func setLaunchAtLogin(_ enabled: Bool) {
+        if enabled {
+            try? SMAppService.mainApp.register()
+        } else {
+            try? SMAppService.mainApp.unregister()
+        }
     }
 }

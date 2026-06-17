@@ -44,6 +44,9 @@ final class HistoryStore {
     }
 
     func clearAll() {
+        // Cancel any pending debounced save, otherwise a stale snapshot
+        // scheduled by a recent add() would write the cleared records back.
+        saveTask?.cancel()
         records.removeAll()
         save()
     }

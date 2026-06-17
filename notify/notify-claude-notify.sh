@@ -1,6 +1,9 @@
 #!/bin/bash
 # Claude Code hook → ClaudeNotify HTTP bridge
-# Reads JSON from stdin, posts to the ClaudeNotify app on localhost:18765.
+# Reads JSON from stdin, posts to the ClaudeNotify app on localhost.
+#
+# Port resolution: reads ~/.config/claude-notify/port (written by the app),
+# falls back to 18765 (the default).
 
 INPUT=$(cat 2>/dev/null)
 EVENT=$(echo "$INPUT" | jq -r '.hook_event_name // ""' 2>/dev/null)
@@ -12,7 +15,13 @@ case "$EVENT" in
   *)             exit 0 ;;
 esac
 
-curl -s -o /dev/null -X POST "http://127.0.0.1:18765${ENDPOINT}" \
+PORT_FILE="$HOME/.config/claude-notify/port"
+if [ -f "$PORT_FILE" ] && [ -r "$PORT_FILE" ]; then
+  PORT=$(tr -d '[:space:]' < "$PORT_FILE")
+fi
+PORT="${PORT:-18765}"
+
+curl -s -o /dev/null -X POST "http://127.0.0.1:${PORT}${ENDPOINT}" \
   -H "Content-Type: application/json" \
   -d "$INPUT" 2>/dev/null &
 

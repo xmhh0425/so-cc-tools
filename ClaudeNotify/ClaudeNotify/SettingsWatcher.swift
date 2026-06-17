@@ -45,8 +45,14 @@ final class SettingsWatcher {
     }
 
     /// Call before the app writes settings.json.
+    /// Sets the flag on `queue` so all `isSelfWriting` access stays serialized
+    /// on the same queue as the file-event handler (no cross-thread race).
+    /// The serial queue guarantees this runs before the write's fs event,
+    /// which the kernel only delivers after the write completes.
     func beginSelfWrite() {
-        isSelfWriting = true
+        queue.async { [weak self] in
+            self?.isSelfWriting = true
+        }
     }
 
     /// Call after the app finishes writing.

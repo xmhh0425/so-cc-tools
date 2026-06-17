@@ -2,26 +2,10 @@ import SwiftUI
 
 struct MenuBarView: View {
     let coordinator: AppCoordinator
-    let panelState: MenuPanelState
 
     var body: some View {
-        Group {
-            switch panelState.page {
-            case .main:
-                mainPage
-            case .settings:
-                SettingsPage(coordinator: coordinator, page: pageBinding)
-            }
-        }
-        .frame(width: MenuPanelLayout.panelWidth, alignment: .top)
-        .animation(.easeInOut(duration: 0.15), value: panelState.page)
-    }
-
-    private var pageBinding: Binding<MenuPage> {
-        Binding(
-            get: { panelState.page },
-            set: { panelState.page = $0 }
-        )
+        mainPage
+            .frame(width: MenuPanelLayout.panelWidth, alignment: .top)
     }
 
     // MARK: - Main Page
@@ -59,7 +43,7 @@ struct MenuBarView: View {
             Text("CC Tools")
                 .font(.system(size: 13, weight: .semibold))
             Spacer()
-            Text("v1.0")
+            Text(Bundle.main.versionDisplay)
                 .font(.system(size: 10))
                 .foregroundStyle(.secondary)
         }
@@ -127,7 +111,7 @@ struct MenuBarView: View {
                 coordinator.managementWindow.showWindow(page: .config)
             }
             actionRow(icon: "gear", title: "设置") {
-                panelState.page = .settings
+                coordinator.managementWindow.showWindow(page: .notifications)
             }
             if !coordinator.history.records.isEmpty {
                 actionRow(icon: "trash", title: "清空历史") {
