@@ -91,12 +91,28 @@ final class AppCoordinator {
 
     private func startServer() {
         server.start()
+        writePortFile()
         notifications.requestAuthorization()
 
         ProcessInfo.processInfo.beginActivity(
             options: [.idleSystemSleepDisabled, .idleDisplaySleepDisabled],
             reason: "Listening for Claude Code hooks"
         )
+    }
+
+    /// Write the active port to ~/.config/claude-notify/port so that
+    /// shell hook scripts (notify-claude-notify.sh) can discover it.
+    private func writePortFile() {
+        let dir = FileManager.default.homeDirectoryForCurrentUser
+            .appendingPathComponent(".config/claude-notify")
+        let file = dir.appendingPathComponent("port")
+        do {
+            try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+            try "\(settings.port)".write(to: file, atomically: true, encoding: .utf8)
+        } catch {
+            Logger(subsystem: "com.claude-notify", category: "Coordinator")
+                .error("Failed to write port file: \(error)")
+        }
     }
 
     // MARK: - Config Drift Detection
@@ -206,7 +222,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
 final class StatusBarController: NSObject {
     private static let panelWidth = MenuPanelLayout.panelWidth
-    private let panelState = MenuPanelState()
     private let statusItem: NSStatusItem
     private let panel: NSPanel
     private var panelFocusAutoCloser: PanelFocusAutoCloser?
@@ -240,8 +255,7 @@ final class StatusBarController: NSObject {
 
         let hostingView = NSHostingView(
             rootView: MenuBarView(
-                coordinator: coordinator,
-                panelState: panelState
+                coordinator: coordinator
             )
                 .background(.regularMaterial)
                 .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
@@ -336,9 +350,4 @@ final class StatusBarController: NSObject {
 private final class StatusPanel: NSPanel {
     override var canBecomeKey: Bool { true }
     override var canBecomeMain: Bool { false }
-}
-
-@Observable
-final class MenuPanelState {
-    var page: MenuPage = .main
 }
