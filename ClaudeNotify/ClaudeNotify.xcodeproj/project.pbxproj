@@ -35,6 +35,8 @@
 		A1000000000000000000001B /* HookManagerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000001B /* HookManagerView.swift */; };
 		A1000000000000000000001C /* SettingsEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000001C /* SettingsEditorView.swift */; };
 		A1000000000000000000001D /* NotificationHistoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000001D /* NotificationHistoryView.swift */; };
+		A1000000000000000000001E /* SettingsWatcher.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000001E /* SettingsWatcher.swift */; };
+		A1000000000000000000001F /* ConfigView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000001F /* ConfigView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -68,6 +70,8 @@
 		A2000000000000000000001B /* HookManagerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HookManagerView.swift; sourceTree = "<group>"; };
 		A2000000000000000000001C /* SettingsEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsEditorView.swift; sourceTree = "<group>"; };
 		A2000000000000000000001D /* NotificationHistoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationHistoryView.swift; sourceTree = "<group>"; };
+		A2000000000000000000001E /* SettingsWatcher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsWatcher.swift; sourceTree = "<group>"; };
+		A2000000000000000000001F /* ConfigView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConfigView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXResourcesBuildPhase section */
@@ -133,6 +137,8 @@
 				A2000000000000000000001B /* HookManagerView.swift */,
 				A2000000000000000000001C /* SettingsEditorView.swift */,
 				A2000000000000000000001D /* NotificationHistoryView.swift */,
+				A2000000000000000000001E /* SettingsWatcher.swift */,
+				A2000000000000000000001F /* ConfigView.swift */,
 			);
 			path = ClaudeNotify;
 			sourceTree = "<group>";
@@ -224,6 +230,8 @@
 				A1000000000000000000001B /* HookManagerView.swift in Sources */,
 				A1000000000000000000001C /* SettingsEditorView.swift in Sources */,
 				A1000000000000000000001D /* NotificationHistoryView.swift in Sources */,
+				A1000000000000000000001E /* SettingsWatcher.swift in Sources */,
+				A1000000000000000000001F /* ConfigView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

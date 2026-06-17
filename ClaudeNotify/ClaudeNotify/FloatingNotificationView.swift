@@ -93,6 +93,7 @@ struct FloatingNotificationView: View {
         case .stop: .green
         case .notification: .orange
         case .stopFailure: .red
+        case .configBroken: .red
         }
     }
 }

@@ -117,15 +117,16 @@ struct DashboardView: View {
         GroupBox("快捷操作") {
             VStack(alignment: .leading, spacing: 10) {
                 Button {
-                    installAllMissing()
+                    coordinator.repairConfig()
+                    refreshData()
                 } label: {
-                    Label("安装全部缺失的通知 Hook", systemImage: "plus.circle")
+                    Label("一键修复配置", systemImage: "wrench.and.screwdriver")
                         .font(.system(size: 12))
                 }
                 .buttonStyle(.borderedProminent)
                 .controlSize(.small)
 
-                Text("状态栏和 Skill 追踪 Hook 需在终端中通过 fix-settings.sh 安装。通知 Hook 可在「Hook 管理」页单独管理。")
+                Text("自动合并回 statusLine + 全部 hooks，不影响其他字段。")
                     .font(.system(size: 10))
                     .foregroundStyle(.tertiary)
             }
@@ -152,31 +153,6 @@ struct DashboardView: View {
     }
 
     // MARK: - Expected hooks definition
-
-    private func hookPath(for event: String) -> String {
-        switch event {
-        case "Stop": return "stop"
-        case "Notification": return "notification"
-        case "StopFailure": return "stopfailure"
-        default: return event.lowercased()
-        }
-    }
-
-    private func installAllMissing() {
-        for event in ["Stop", "Notification", "StopFailure"] {
-            let already = hooks.contains { $0.event == event && $0.type == .http && $0.target.contains("/hook/") }
-            if !already {
-                let config = HookConfig(
-                    event: event,
-                    matcher: "",
-                    type: .http,
-                    target: "http://127.0.0.1:\(coordinator.settings.port)/hook/\(hookPath(for: event))"
-                )
-                try? settingsManager.ensureHook(config)
-            }
-        }
-        refreshData()
-    }
 
     private func refreshData() {
         hooks = settingsManager.readAllHooks()

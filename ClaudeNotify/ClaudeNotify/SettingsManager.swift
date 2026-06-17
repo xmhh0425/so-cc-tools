@@ -23,10 +23,8 @@ struct HookConfig: Identifiable {
     /// Extract a short display name from the target (e.g. script filename).
     var shortTarget: String {
         if type == .http {
-            // "http://127.0.0.1:18765/hook/stop" → "ClaudeNotify"
             return "ClaudeNotify"
         }
-        // "bash /path/to/hook-pre-skill.sh" → "hook-pre-skill.sh"
         return URL(fileURLWithPath: target.replacingOccurrences(of: "bash ", with: "")).lastPathComponent
     }
 }
@@ -38,20 +36,68 @@ struct StatusLineConfig {
     var refreshInterval: Int
 }
 
+/// One unit of config this tool manages.
+struct ManagedHookSpec: Identifiable {
+    let id: String              // script filename used for dedup: "notify-claude-notify.sh", etc.
+    let event: String           // "Stop", "PreToolUse", ...
+    let matcher: String         // "", "Skill", ".*"
+    let isNotificationHook: Bool
+    let displayName: String
+}
+
+/// Health status of the managed configuration.
+struct ConfigHealth {
+    struct Item: Identifiable {
+        let id: String
+        let event: String
+        let label: String
+        let isPresent: Bool
+        let encoding: String?   // "http", "command", or nil
+    }
+    let items: [Item]
+    let statusLinePresent: Bool
+
+    var isHealthy: Bool {
+        items.allSatisfy(\.isPresent) && statusLinePresent
+    }
+
+    var missingCount: Int {
+        items.filter { !$0.isPresent }.count + (statusLinePresent ? 0 : 1)
+    }
+
+    /// Stable signature for edge-triggered transition detection.
+    var signature: String {
+        items.map { "\($0.event):\($0.isPresent ? 1 : 0)" }.joined(separator: ",")
+            + "|sl:\(statusLinePresent ? 1 : 0)"
+    }
+}
+
 /// Manages the full ~/.claude/settings.json: hooks, statusLine, and all other fields.
 /// Preserves unknown fields — only touches what it understands.
 final class SettingsManager {
     private let logger = Logger(subsystem: "com.claude-notify", category: "SettingsManager")
 
-    private var settingsPath: URL {
+    /// Canonical list of hooks managed by this tool. Single source of truth.
+    static let managedSpecs: [ManagedHookSpec] = [
+        ManagedHookSpec(id: "notify-claude-notify.sh", event: "Stop", matcher: "", isNotificationHook: true, displayName: "Stop（任务完成）"),
+        ManagedHookSpec(id: "notify-claude-notify.sh", event: "Notification", matcher: "", isNotificationHook: true, displayName: "Notification（等待输入）"),
+        ManagedHookSpec(id: "notify-claude-notify.sh", event: "StopFailure", matcher: "", isNotificationHook: true, displayName: "StopFailure（API 错误）"),
+        ManagedHookSpec(id: "hook-pre-skill.sh", event: "PreToolUse", matcher: "Skill", isNotificationHook: false, displayName: "PreToolUse（Skill 追踪）"),
+        ManagedHookSpec(id: "hook-skill-tracker.sh", event: "UserPromptExpansion", matcher: ".*", isNotificationHook: false, displayName: "UserPromptExpansion（命令追踪）"),
+    ]
+
+    /// Public path for SettingsWatcher access.
+    var settingsPath: URL {
         FileManager.default.homeDirectoryForCurrentUser
             .appendingPathComponent(".claude")
             .appendingPathComponent("settings.json")
     }
 
+    /// Weak reference to watcher for self-write suppression.
+    weak var watcher: SettingsWatcher?
+
     // MARK: - Read
 
-    /// Read all hooks from settings.json, returned as typed configs.
     func readAllHooks() -> [HookConfig] {
         guard let settings = readSettings(),
               let hooks = settings["hooks"] as? [String: Any] else {
@@ -76,7 +122,6 @@ final class SettingsManager {
         return result
     }
 
-    /// Read the statusLine configuration.
     func readStatusLine() -> StatusLineConfig? {
         guard let settings = readSettings(),
               let sl = settings["statusLine"] as? [String: Any] else {
@@ -89,12 +134,10 @@ final class SettingsManager {
         )
     }
 
-    /// Read the full settings as a dictionary (for the editor view).
     func readFullSettings() -> [String: Any]? {
         return readSettings()
     }
 
-    /// Check if a specific hook event has any entry.
     func isHookInstalled(event: String, type: HookConfig.HookType? = nil, targetContains: String? = nil) -> Bool {
         let hooks = readAllHooks()
         return hooks.contains { hook in
@@ -104,10 +147,105 @@ final class SettingsManager {
         }
     }
 
+    // MARK: - Health Check
+
+    /// Check health of all managed config items. Accepts BOTH http and command encodings.
+    func checkHealth() -> ConfigHealth {
+        let hooks = readAllHooks()
+        let slPresent = readStatusLine() != nil
+
+        let items: [ConfigHealth.Item] = Self.managedSpecs.map { spec in
+            let matching = hooks.first { h in
+                h.event == spec.event && (
+                    (h.type == .http && h.target.contains("/hook/"))
+                    || (h.type == .command && h.target.contains(spec.id))
+                )
+            }
+            return ConfigHealth.Item(
+                id: spec.id,
+                event: spec.event,
+                label: spec.displayName,
+                isPresent: matching != nil,
+                encoding: matching?.type.rawValue
+            )
+        }
+
+        return ConfigHealth(items: items, statusLinePresent: slPresent)
+    }
+
+    // MARK: - Repair
+
+    /// Native one-click fix: backup, resolve repo path, install missing hooks + statusLine.
+    func repairManaged() throws {
+        try backupSettings()
+        let existing = readAllHooks()
+        let repoBase = Self.resolveRepoBase(from: existing)
+
+        // statusLine
+        let existingSL = readStatusLine()
+        let slCommand = existingSL?.command.isEmpty == false
+            ? existingSL!.command
+            : "bash \(repoBase)/statusline/statusline.sh"
+        let slInterval = existingSL?.refreshInterval ?? 5
+        try setStatusLine(StatusLineConfig(enabled: true, command: slCommand, refreshInterval: slInterval))
+
+        // notification hooks — only add if missing
+        let health = checkHealth()
+        let notifyTarget = "bash \(repoBase)/notify/notify-claude-notify.sh"
+        for item in health.items where item.event != "PreToolUse" && item.event != "UserPromptExpansion" {
+            if !item.isPresent {
+                try ensureHook(HookConfig(event: item.event, matcher: "", type: .command, target: notifyTarget))
+            }
+        }
+
+        // statusline command hooks
+        let preskillTarget = "bash \(repoBase)/statusline/hook-pre-skill.sh"
+        let trackerTarget = "bash \(repoBase)/statusline/hook-skill-tracker.sh"
+
+        let preskillPresent = health.items.first { $0.event == "PreToolUse" }?.isPresent ?? false
+        if !preskillPresent {
+            try ensureHook(HookConfig(event: "PreToolUse", matcher: "Skill", type: .command, target: preskillTarget))
+        }
+
+        let trackerPresent = health.items.first { $0.event == "UserPromptExpansion" }?.isPresent ?? false
+        if !trackerPresent {
+            try ensureHook(HookConfig(event: "UserPromptExpansion", matcher: ".*", type: .command, target: trackerTarget))
+        }
+
+        logger.info("repairManaged completed")
+    }
+
+    /// Resolve the repo base directory from existing hooks or candidate paths.
+    static func resolveRepoBase(from hooks: [HookConfig]) -> String {
+        // Try to find from existing hook targets
+        for hook in hooks {
+            if hook.type == .command && hook.target.contains("so-cc-tools") {
+                let scriptPath = hook.target.replacingOccurrences(of: "bash ", with: "")
+                let scriptURL = URL(fileURLWithPath: scriptPath)
+                // Walk up from script to repo root (script is in statusline/ or notify/)
+                let repo = scriptURL.deletingLastPathComponent().deletingLastPathComponent()
+                return repo.path
+            }
+        }
+
+        // Fallback: candidate paths
+        let home = FileManager.default.homeDirectoryForCurrentUser.path
+        let candidates = [
+            "\(home)/AI/so-cc-tools",
+            "\(home)/AI/claude-tools",
+        ]
+        for candidate in candidates {
+            if FileManager.default.fileExists(atPath: "\(candidate)/fix-settings.sh") {
+                return candidate
+            }
+        }
+
+        // Last resort
+        return "\(home)/AI/so-cc-tools"
+    }
+
     // MARK: - Write
 
-    /// Install a hook idempotently. Removes existing entries for the same event
-    /// that match by script filename (dedup), then appends the new entry.
     func ensureHook(_ config: HookConfig) throws {
         var settings = readSettings() ?? [:]
         var hooks = settings["hooks"] as? [String: Any] ?? [:]
@@ -125,7 +263,6 @@ final class SettingsManager {
             "hooks": [hookEntry]
         ]
 
-        // Dedup: remove existing entries that match by script filename
         let dedupId = Self.dedupIdentifier(from: config.target)
 
         if var eventHooks = hooks[config.event] as? [[String: Any]] {
@@ -147,7 +284,6 @@ final class SettingsManager {
         logger.info("Ensured hook: \(config.event) → \(config.target)")
     }
 
-    /// Uninstall hooks matching the given event + target dedup identifier.
     func uninstallHook(event: String, targetContains: String) throws {
         guard var settings = readSettings(),
               var hooks = settings["hooks"] as? [String: Any],
@@ -181,7 +317,6 @@ final class SettingsManager {
         logger.info("Uninstalled hook: \(event) containing \(targetContains)")
     }
 
-    /// Install or remove the statusLine configuration.
     func setStatusLine(_ config: StatusLineConfig?) throws {
         var settings = readSettings() ?? [:]
 
@@ -201,7 +336,6 @@ final class SettingsManager {
 
     // MARK: - Backup
 
-    /// Create a .bak copy of settings.json before making changes.
     func backupSettings() throws {
         let bakPath = settingsPath.appendingPathExtension("bak")
         let fm = FileManager.default
@@ -230,14 +364,12 @@ final class SettingsManager {
     }
 
     private func writeSettings(_ settings: [String: Any]) throws {
+        watcher?.beginSelfWrite()
+        defer { watcher?.endSelfWrite() }
         let data = try JSONSerialization.data(withJSONObject: settings, options: [.prettyPrinted, .sortedKeys])
         try data.write(to: settingsPath, options: .atomic)
     }
 
-    /// Extract the filename from a target string for dedup comparison.
-    /// E.g. "bash /Users/sofun/AI/so-cc-tools/notify/notify-claude-notify.sh"
-    ///      → "notify-claude-notify.sh"
-    /// "http://127.0.0.1:18765/hook/stop" → "hook/stop"
     static func dedupIdentifier(from target: String) -> String {
         let cleaned = target.replacingOccurrences(of: "bash ", with: "")
         return URL(fileURLWithPath: cleaned).lastPathComponent

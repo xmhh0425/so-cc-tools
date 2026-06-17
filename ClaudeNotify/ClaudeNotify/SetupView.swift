@@ -29,7 +29,7 @@ struct SetupPage: View {
 
             Divider()
 
-            ForEach(HookEvent.allCases, id: \.self) { event in
+            ForEach(HookEvent.allCases.filter(\.isInstallable), id: \.self) { event in
                 HStack {
                     Image(systemName: hookStatus[event] == true ? "checkmark.circle.fill" : "circle")
                         .foregroundStyle(hookStatus[event] == true ? .green : .secondary)
@@ -87,11 +87,12 @@ struct SetupPage: View {
         case .stop: return "stop"
         case .notification: return "notification"
         case .stopFailure: return "stopfailure"
+        case .configBroken: return ""
         }
     }
 
     private func refreshStatus() {
-        for event in HookEvent.allCases {
+        for event in HookEvent.allCases where event.isInstallable {
             hookStatus[event] = settingsManager.isHookInstalled(
                 event: event.rawValue, type: .http, targetContains: "/hook/"
             )
@@ -104,6 +105,7 @@ struct SetupPage: View {
         case .stop: hookPath = "stop"
         case .notification: hookPath = "notification"
         case .stopFailure: hookPath = "stopfailure"
+        case .configBroken: hookPath = ""
         }
         return HookConfig(
             event: event.rawValue,
@@ -127,7 +129,7 @@ struct SetupPage: View {
     }
 
     private func installAll() {
-        for event in HookEvent.allCases {
+        for event in HookEvent.allCases where event.isInstallable {
             if hookStatus[event] != true {
                 try? settingsManager.ensureHook(makeHookConfig(for: event))
             }
@@ -136,7 +138,7 @@ struct SetupPage: View {
     }
 
     private func uninstallAll() {
-        for event in HookEvent.allCases {
+        for event in HookEvent.allCases where event.isInstallable {
             try? settingsManager.uninstallHook(event: event.rawValue, targetContains: "/hook/")
         }
         refreshStatus()

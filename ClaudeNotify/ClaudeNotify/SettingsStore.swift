@@ -39,6 +39,14 @@ final class SettingsStore {
         didSet { UserDefaults.standard.set(stopFailureDuration, forKey: "stopFailureDuration") }
     }
 
+    var configBrokenDuration: Int {
+        didSet { UserDefaults.standard.set(configBrokenDuration, forKey: "configBrokenDuration") }
+    }
+
+    var autoFixOnDrift: Bool {
+        didSet { UserDefaults.standard.set(autoFixOnDrift, forKey: "autoFixOnDrift") }
+    }
+
     init() {
         let defaults = UserDefaults.standard
         // Register defaults
@@ -52,6 +60,8 @@ final class SettingsStore {
             "stopDuration": 60,
             "notificationDuration": 60,
             "stopFailureDuration": 60,
+            "configBrokenDuration": 60,
+            "autoFixOnDrift": false,
         ])
 
         self.port = defaults.integer(forKey: "port")
@@ -63,5 +73,7 @@ final class SettingsStore {
         self.stopDuration = defaults.integer(forKey: "stopDuration")
         self.notificationDuration = defaults.integer(forKey: "notificationDuration")
         self.stopFailureDuration = defaults.integer(forKey: "stopFailureDuration")
+        self.configBrokenDuration = defaults.integer(forKey: "configBrokenDuration")
+        self.autoFixOnDrift = defaults.bool(forKey: "autoFixOnDrift")
     }
 }
