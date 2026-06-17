@@ -32,9 +32,14 @@ struct DashboardView: View {
                 .font(.title2)
                 .fontWeight(.semibold)
             Spacer()
-            Text("Claude Code Tools")
-                .font(.caption)
-                .foregroundStyle(.secondary)
+            VStack(alignment: .trailing, spacing: 2) {
+                Text("Claude Code Tools")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Text(Bundle.main.versionDisplay)
+                    .font(.system(size: 10, design: .monospaced))
+                    .foregroundStyle(.tertiary)
+            }
         }
     }
 

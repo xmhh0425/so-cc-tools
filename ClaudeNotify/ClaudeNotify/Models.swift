@@ -1,11 +1,5 @@
 import Foundation
 
-/// Navigation state for the menu bar dropdown
-enum MenuPage: Equatable {
-    case main
-    case settings
-}
-
 /// The type of Claude Code hook event.
 enum HookEvent: String, Codable, CaseIterable {
     case stop = "Stop"
@@ -64,5 +58,15 @@ struct NotificationRecord: Codable, Identifiable {
         self.message = message
         self.project = project
         self.timestamp = Date()
+    }
+}
+
+extension Bundle {
+    /// 统一的版本号展示：v{marketing} ({build})，如 "v1.1.0 (2)"。
+    /// 概览页 / 菜单栏速览面板 / 设置页共用，从 bundle 读取，避免硬编码导致多处不一致。
+    var versionDisplay: String {
+        let short = infoDictionary?["CFBundleShortVersionString"] as? String ?? "?"
+        let build = infoDictionary?["CFBundleVersion"] as? String ?? "?"
+        return "v\(short) (\(build))"
     }
 }
