@@ -105,6 +105,10 @@ struct NotificationHistoryView: View {
                             get: { coordinator.settings.stopFailureDuration },
                             set: { coordinator.settings.stopFailureDuration = $0 }
                         ))
+                        durationStepper("配置异常", value: Binding(
+                            get: { coordinator.settings.configBrokenDuration },
+                            set: { coordinator.settings.configBrokenDuration = $0 }
+                        ))
                     }
                 }
             }

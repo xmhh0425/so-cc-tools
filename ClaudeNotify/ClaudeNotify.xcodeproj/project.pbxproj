@@ -19,7 +19,7 @@
 		A1000000000000000000000A /* MenuBarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000000A /* MenuBarView.swift */; };
 		A1000000000000000000000B /* HistoryRowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000000B /* HistoryRowView.swift */; };
 		A1000000000000000000000C /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000000C /* SettingsView.swift */; };
-		A1000000000000000000000D /* SetupView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000000D /* SetupView.swift */; };
+
 		A1000000000000000000000E /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000000E /* Assets.xcassets */; };
 		A1000000000000000000000F /* AppIcon.icns in Resources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000010 /* AppIcon.icns */; };
 		A10000000000000000000010 /* FloatingNotificationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000011 /* FloatingNotificationManager.swift */; };
@@ -32,8 +32,7 @@
 		A10000000000000000000018 /* ManagementWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000018 /* ManagementWindow.swift */; };
 		A10000000000000000000019 /* ManagementView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000019 /* ManagementView.swift */; };
 		A1000000000000000000001A /* DashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000001A /* DashboardView.swift */; };
-		A1000000000000000000001B /* HookManagerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000001B /* HookManagerView.swift */; };
-		A1000000000000000000001C /* SettingsEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000001C /* SettingsEditorView.swift */; };
+
 		A1000000000000000000001D /* NotificationHistoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000001D /* NotificationHistoryView.swift */; };
 		A1000000000000000000001E /* SettingsWatcher.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000001E /* SettingsWatcher.swift */; };
 		A1000000000000000000001F /* ConfigView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000001F /* ConfigView.swift */; };
@@ -52,7 +51,7 @@
 		A2000000000000000000000A /* MenuBarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarView.swift; sourceTree = "<group>"; };
 		A2000000000000000000000B /* HistoryRowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryRowView.swift; sourceTree = "<group>"; };
 		A2000000000000000000000C /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
-		A2000000000000000000000D /* SetupView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SetupView.swift; sourceTree = "<group>"; };
+
 		A30000000000000000000001 /* ClaudeNotify.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ClaudeNotify.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		A2000000000000000000000E /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		A2000000000000000000000F /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
@@ -67,8 +66,7 @@
 		A20000000000000000000018 /* ManagementWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ManagementWindow.swift; sourceTree = "<group>"; };
 		A20000000000000000000019 /* ManagementView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ManagementView.swift; sourceTree = "<group>"; };
 		A2000000000000000000001A /* DashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardView.swift; sourceTree = "<group>"; };
-		A2000000000000000000001B /* HookManagerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HookManagerView.swift; sourceTree = "<group>"; };
-		A2000000000000000000001C /* SettingsEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsEditorView.swift; sourceTree = "<group>"; };
+
 		A2000000000000000000001D /* NotificationHistoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationHistoryView.swift; sourceTree = "<group>"; };
 		A2000000000000000000001E /* SettingsWatcher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsWatcher.swift; sourceTree = "<group>"; };
 		A2000000000000000000001F /* ConfigView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConfigView.swift; sourceTree = "<group>"; };
@@ -120,7 +118,7 @@
 				A2000000000000000000000A /* MenuBarView.swift */,
 				A2000000000000000000000B /* HistoryRowView.swift */,
 				A2000000000000000000000C /* SettingsView.swift */,
-				A2000000000000000000000D /* SetupView.swift */,
+
 				A2000000000000000000000E /* Assets.xcassets */,
 				A2000000000000000000000F /* Info.plist */,
 				A20000000000000000000010 /* AppIcon.icns */,
@@ -134,8 +132,7 @@
 				A20000000000000000000018 /* ManagementWindow.swift */,
 				A20000000000000000000019 /* ManagementView.swift */,
 				A2000000000000000000001A /* DashboardView.swift */,
-				A2000000000000000000001B /* HookManagerView.swift */,
-				A2000000000000000000001C /* SettingsEditorView.swift */,
+
 				A2000000000000000000001D /* NotificationHistoryView.swift */,
 				A2000000000000000000001E /* SettingsWatcher.swift */,
 				A2000000000000000000001F /* ConfigView.swift */,
@@ -216,7 +213,7 @@
 				A1000000000000000000000A /* MenuBarView.swift in Sources */,
 				A1000000000000000000000B /* HistoryRowView.swift in Sources */,
 				A1000000000000000000000C /* SettingsView.swift in Sources */,
-				A1000000000000000000000D /* SetupView.swift in Sources */,
+
 				A10000000000000000000010 /* FloatingNotificationManager.swift in Sources */,
 				A10000000000000000000011 /* FloatingNotificationViewModel.swift in Sources */,
 				A10000000000000000000012 /* FloatingNotificationView.swift in Sources */,
@@ -227,8 +224,7 @@
 				A10000000000000000000018 /* ManagementWindow.swift in Sources */,
 				A10000000000000000000019 /* ManagementView.swift in Sources */,
 				A1000000000000000000001A /* DashboardView.swift in Sources */,
-				A1000000000000000000001B /* HookManagerView.swift in Sources */,
-				A1000000000000000000001C /* SettingsEditorView.swift in Sources */,
+
 				A1000000000000000000001D /* NotificationHistoryView.swift in Sources */,
 				A1000000000000000000001E /* SettingsWatcher.swift in Sources */,
 				A1000000000000000000001F /* ConfigView.swift in Sources */,
