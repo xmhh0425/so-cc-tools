@@ -134,17 +134,28 @@ fi
 [ -n "$latest_skills" ] || latest_skills="${C_WHITE}-${C_RESET}"
 
 # === Session duration ===
+# Calculate from transcript first timestamp (wall-clock), not API cumulative time
 
-duration_ms=$(echo "$input" | jq -r '.cost.total_duration_ms // empty')
 duration_display=""
-if [ -n "$duration_ms" ]; then
-  total_sec=$((duration_ms / 1000))
-  hours=$((total_sec / 3600))
-  mins=$(( (total_sec % 3600) / 60 ))
-  if [ "$hours" -gt 0 ]; then
-    duration_display="Session: ${hours}h${mins}m"
-  else
-    duration_display="Session: ${mins}m"
+if [ -n "$transcript" ] && [ -f "$transcript" ]; then
+  session_start=$(jq -r 'select(.timestamp != null) | .timestamp' "$transcript" 2>/dev/null | head -1 || true)
+  if [ -n "$session_start" ]; then
+    # Transcript timestamps are UTC (ISO 8601 with trailing Z); stripping the
+    # fractional part also drops the Z, so parse with TZ=UTC to avoid a
+    # local-timezone offset (e.g. UTC+8 shows a fresh session as 8h).
+    start_epoch=$(TZ=UTC date -j -f "%Y-%m-%dT%H:%M:%S" "${session_start%%.*}" "+%s" 2>/dev/null || true)
+    if [ -n "$start_epoch" ]; then
+      now_epoch=$(date "+%s")
+      elapsed=$(( now_epoch - start_epoch ))
+      [ "$elapsed" -lt 0 ] && elapsed=0
+      hours=$(( elapsed / 3600 ))
+      mins=$(( (elapsed % 3600) / 60 ))
+      if [ "$hours" -gt 0 ]; then
+        duration_display="Session: ${hours}h${mins}m"
+      else
+        duration_display="Session: ${mins}m"
+      fi
+    fi
   fi
 fi
 
