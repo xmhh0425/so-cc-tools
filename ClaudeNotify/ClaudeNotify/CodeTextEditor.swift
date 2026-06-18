@@ -1,14 +1,16 @@
 import SwiftUI
 import AppKit
 
-/// Plain-text code editor for JSON/script content.
+/// Plain-text code editor with per-line background color support.
 ///
-/// Wraps NSTextView and disables every "helpful" macOS text feature that
-/// corrupts code: smart quotes, smart dashes, autocorrect, link detection,
-/// text replacement. Uses a monospaced font.
+/// Wraps NSTextView, disables macOS "helpful" text features (smart quotes
+/// etc.), and applies colored backgrounds to specified line ranges via the
+/// layout manager.
 struct CodeTextEditor: NSViewRepresentable {
     @Binding var text: String
     var font: NSFont = .monospacedSystemFont(ofSize: 12, weight: .regular)
+    /// Line-range → color mapping. Lines are 1-based.
+    var lineHighlights: [Int: Color] = [:]
 
     func makeCoordinator() -> Coordinator { Coordinator(self) }
 
@@ -31,9 +33,6 @@ struct CodeTextEditor: NSViewRepresentable {
         textView.isRichText = false
         textView.importsGraphics = false
 
-        // Kill every auto-correction feature. This is what causes
-        // "I changed a string and now JSON is invalid" — TextEditor was
-        // replacing ASCII quotes with curly quotes.
         textView.isAutomaticQuoteSubstitutionEnabled = false
         textView.isAutomaticDashSubstitutionEnabled = false
         textView.isAutomaticTextReplacementEnabled = false
@@ -53,6 +52,7 @@ struct CodeTextEditor: NSViewRepresentable {
         textView.textContainerInset = NSSize(width: 4, height: 6)
 
         textView.string = text
+        applyHighlights(textView)
 
         return scrollView
     }
@@ -60,7 +60,6 @@ struct CodeTextEditor: NSViewRepresentable {
     func updateNSView(_ scrollView: NSScrollView, context: Context) {
         guard let textView = scrollView.documentView as? NSTextView else { return }
         if textView.string != text {
-            // Preserve selection where possible.
             let selected = textView.selectedRanges
             textView.string = text
             textView.selectedRanges = selected.compactMap { value in
@@ -74,6 +73,43 @@ struct CodeTextEditor: NSViewRepresentable {
         if textView.font != font {
             textView.font = font
         }
+        applyHighlights(textView)
+    }
+
+    /// Apply colored backgrounds to individual lines via the layout manager.
+    /// Uses the character range of each line to set the `backgroundColor`
+    /// attribute on the text storage — this is a visual-only attribute and
+    /// does NOT trigger textDidChange or interfere with editing.
+    private func applyHighlights(_ textView: NSTextView) {
+        guard let storage = textView.textStorage,
+              let layoutManager = textView.layoutManager else { return }
+
+        let text = textView.string as NSString
+        let fullRange = NSRange(location: 0, length: text.length)
+
+        // Clear all background colors first.
+        storage.removeAttribute(.backgroundColor, range: fullRange)
+
+        guard !lineHighlights.isEmpty else {
+            layoutManager.invalidateDisplay(forCharacterRange: fullRange)
+            return
+        }
+
+        // For each highlighted line, set background color on its character range.
+        var line = 1
+        var start = 0
+        while start < text.length {
+            let end = text.range(of: "\n", range: NSRange(location: start, length: text.length - start))
+            let lineEnd = end.location == NSNotFound ? text.length : end.location
+            if let color = lineHighlights[line] {
+                let charRange = NSRange(location: start, length: lineEnd - start)
+                storage.addAttribute(.backgroundColor, value: NSColor(color), range: charRange)
+            }
+            start = lineEnd + 1
+            line += 1
+        }
+
+        layoutManager.invalidateDisplay(forCharacterRange: fullRange)
     }
 
     final class Coordinator: NSObject, NSTextViewDelegate {

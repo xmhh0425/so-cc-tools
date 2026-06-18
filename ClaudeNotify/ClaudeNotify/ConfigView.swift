@@ -81,6 +81,76 @@ struct ConfigView: View {
         return sl["refreshInterval"] as? Int ?? 5
     }
 
+    /// Per-line background colors for the editor. Blue for "hooks" sections,
+    /// green for "statusLine" sections. Colors appear only when the
+    /// corresponding toggle is ON.
+    private var lineHighlights: [Int: Color] {
+        var colors: [Int: Color] = [:]
+        let sections: [(key: String, color: Color)] = [
+            ("hooks", .blue.opacity(0.07)),
+            ("statusLine", .green.opacity(0.07)),
+        ]
+        for (key, sectionColor) in sections {
+            for (start, end) in jsonSectionRanges(editorContent, key: key) {
+                // Only color when the matching toggle is active.
+                let color = (key == "hooks" && notificationHooksOn)
+                    || (key == "statusLine" && statusLineOn)
+                    ? sectionColor : nil
+                guard let color else { continue }
+                for line in start...end { colors[line] = color }
+            }
+        }
+        return colors
+    }
+
+    /// Find line ranges where a top-level JSON key's value block appears.
+    /// Returns [(startLine, endLine)] (1-based, inclusive).
+    private func jsonSectionRanges(_ text: String, key: String) -> [(Int, Int)] {
+        let lines = text.components(separatedBy: "\n")
+        var results: [(Int, Int)] = []
+        var lineIndex = 0
+        while lineIndex < lines.count {
+            let trimmed = lines[lineIndex].trimmingCharacters(in: .whitespaces)
+            if trimmed.hasPrefix("\"\(key)\"") && trimmed.contains(":") {
+                let startLine = lineIndex + 1
+                // Find the opening brace/bracket on this line or the next.
+                var depth = 0
+                var foundOpen = false
+                var j = lineIndex
+                while j < min(lineIndex + 2, lines.count) {
+                    for ch in lines[j] {
+                        if ch == "{" || ch == "[" {
+                            depth += 1; foundOpen = true
+                        } else if ch == "}" || ch == "]" { depth -= 1 }
+                    }
+                    if foundOpen && depth <= 0 {
+                        results.append((startLine, j + 1))
+                        lineIndex = j + 1
+                        break
+                    }
+                    j += 1
+                }
+                if !foundOpen || depth > 0 {
+                    // Value spans multiple lines; walk until matching close.
+                    j = max(j, lineIndex + 1)
+                    while j < lines.count && depth > 0 {
+                        for ch in lines[j] {
+                            if ch == "{" || ch == "[" { depth += 1 }
+                            else if ch == "}" || ch == "]" { depth -= 1 }
+                        }
+                        j += 1
+                    }
+                    results.append((startLine, j))
+                    lineIndex = j
+                    continue
+                }
+                continue
+            }
+            lineIndex += 1
+        }
+        return results
+    }
+
     // MARK: - Server Status
 
     private var statusBanner: some View {
@@ -105,7 +175,12 @@ struct ConfigView: View {
         VStack(alignment: .leading, spacing: 10) {
             SectionHeader("配置")
 
-            toggleCard {
+            toggleCard(
+                color: .blue,
+                icon: "bell.badge",
+                title: "通知 Hooks",
+                description: "Stop / Notification / StopFailure — 任务完成、等待输入、API 错误时通知"
+            ) {
                 settingsToggleRow(
                     label: "通知 Hooks",
                     description: "Stop / Notification / StopFailure — 任务完成、等待输入、API 错误时通知",
@@ -114,9 +189,14 @@ struct ConfigView: View {
                 ) {
                     mutateJSON { setNotificationHooks(in: &$0, enabled: !notificationHooksOn) }
                 }
+            }
 
-                Divider()
-
+            toggleCard(
+                color: .green,
+                icon: "terminal",
+                title: "状态栏",
+                description: "在终端显示模型、上下文用量、Skill 历史"
+            ) {
                 settingsToggleRow(
                     label: "状态栏",
                     description: "在终端显示模型、上下文用量、Skill 历史",
@@ -177,7 +257,7 @@ struct ConfigView: View {
                 infoBanner(icon: "exclamationmark.triangle.fill", color: .orange, text: error)
             }
 
-            CodeTextEditor(text: $editorContent)
+            CodeTextEditor(text: $editorContent, lineHighlights: lineHighlights)
                 .padding(2)
                 .background(Color(nsColor: .textBackgroundColor))
                 .clipShape(RoundedRectangle(cornerRadius: 8))
@@ -254,13 +334,24 @@ struct ConfigView: View {
             .textCase(.uppercase)
     }
 
-    private func toggleCard<Content: View>(@ViewBuilder content: () -> Content) -> some View {
+    private func toggleCard<Content: View>(
+        color: Color,
+        icon: String,
+        title: String,
+        description: String,
+        @ViewBuilder content: () -> Content
+    ) -> some View {
         VStack(spacing: 0) {
             content()
         }
         .padding(.horizontal, 14)
         .background(Color(nsColor: .controlBackgroundColor))
         .clipShape(RoundedRectangle(cornerRadius: 8))
+        .overlay(alignment: .leading) {
+            RoundedRectangle(cornerRadius: 8)
+                .fill(color.opacity(0.7))
+                .frame(width: 4)
+        }
     }
 
     private func infoBanner(icon: String, color: Color, text: String) -> some View {
