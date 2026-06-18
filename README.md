@@ -36,28 +36,6 @@ git clone https://github.com/xmhh0425/so-cc-tools.git ~/AI/so-cc-tools
     "refreshInterval": 5
   },
   "hooks": {
-    "PreToolUse": [
-      {
-        "matcher": "Skill",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bash ~/AI/so-cc-tools/statusline/hook-pre-skill.sh"
-          }
-        ]
-      }
-    ],
-    "UserPromptExpansion": [
-      {
-        "matcher": ".*",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bash ~/AI/so-cc-tools/statusline/hook-skill-tracker.sh"
-          }
-        ]
-      }
-    ],
     "Stop": [
       {
         "matcher": "",
