@@ -67,6 +67,6 @@ extension Bundle {
     var versionDisplay: String {
         let short = infoDictionary?["CFBundleShortVersionString"] as? String ?? "?"
         let build = infoDictionary?["CFBundleVersion"] as? String ?? "?"
-        return "v\(short) (\(build))"
+        return "v\(short).\(build)"
     }
 }

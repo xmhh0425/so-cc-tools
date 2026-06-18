@@ -12,7 +12,7 @@ struct HistoryRowView: View {
 
             VStack(alignment: .leading, spacing: 3) {
                 Text(record.event.displayName)
-                    .font(.system(size: 11, weight: .semibold))
+                    .font(.system(size: 12, weight: .semibold))
 
                 Text(record.message)
                     .font(.system(size: 12))
@@ -36,6 +36,7 @@ struct HistoryRowView: View {
                 .font(.system(size: 10))
                 .foregroundStyle(.tertiary)
                 .fixedSize()
+                .padding(.top, 1)
         }
     }
 
