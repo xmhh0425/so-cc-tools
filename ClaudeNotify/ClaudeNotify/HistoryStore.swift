@@ -8,7 +8,7 @@ final class HistoryStore {
     private let logger = Logger(subsystem: "com.claude-notify", category: "History")
 
     private let fileURL: URL
-    private let maxRecords = 200
+    private let maxRecords = 20
     private var saveTask: Task<Void, Never>?
 
     init() {
