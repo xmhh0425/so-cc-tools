@@ -82,8 +82,6 @@ final class SettingsManager {
         ManagedHookSpec(id: "notify-claude-notify.sh", event: "Stop", matcher: "", isNotificationHook: true, displayName: "Stop（任务完成）"),
         ManagedHookSpec(id: "notify-claude-notify.sh", event: "Notification", matcher: "", isNotificationHook: true, displayName: "Notification（等待输入）"),
         ManagedHookSpec(id: "notify-claude-notify.sh", event: "StopFailure", matcher: "", isNotificationHook: true, displayName: "StopFailure（API 错误）"),
-        ManagedHookSpec(id: "hook-pre-skill.sh", event: "PreToolUse", matcher: "Skill", isNotificationHook: false, displayName: "PreToolUse（Skill 追踪）"),
-        ManagedHookSpec(id: "hook-skill-tracker.sh", event: "UserPromptExpansion", matcher: ".*", isNotificationHook: false, displayName: "UserPromptExpansion（命令追踪）"),
     ]
 
     /// Public path for SettingsWatcher access.
@@ -192,24 +190,10 @@ final class SettingsManager {
         // notification hooks — only add if missing
         let health = checkHealth()
         let notifyTarget = "bash \(repoBase)/notify/notify-claude-notify.sh"
-        for item in health.items where item.event != "PreToolUse" && item.event != "UserPromptExpansion" {
+        for item in health.items {
             if !item.isPresent {
                 try ensureHook(HookConfig(event: item.event, matcher: "", type: .command, target: notifyTarget))
             }
-        }
-
-        // statusline command hooks
-        let preskillTarget = "bash \(repoBase)/statusline/hook-pre-skill.sh"
-        let trackerTarget = "bash \(repoBase)/statusline/hook-skill-tracker.sh"
-
-        let preskillPresent = health.items.first { $0.event == "PreToolUse" }?.isPresent ?? false
-        if !preskillPresent {
-            try ensureHook(HookConfig(event: "PreToolUse", matcher: "Skill", type: .command, target: preskillTarget))
-        }
-
-        let trackerPresent = health.items.first { $0.event == "UserPromptExpansion" }?.isPresent ?? false
-        if !trackerPresent {
-            try ensureHook(HookConfig(event: "UserPromptExpansion", matcher: ".*", type: .command, target: trackerTarget))
         }
 
         logger.info("repairManaged completed")

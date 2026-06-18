@@ -38,6 +38,8 @@ struct ManagementView: View {
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .toolbarBackground(.visible, for: .windowToolbar)
+            .toolbarBackground(.regularMaterial, for: .windowToolbar)
         }
     }
 }
