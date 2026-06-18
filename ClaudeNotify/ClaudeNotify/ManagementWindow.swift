@@ -30,13 +30,13 @@ final class ManagementWindowController {
         self.managementView = mv
 
         let newWindow = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 720, height: 560),
+            contentRect: NSRect(x: 0, y: 0, width: 1100, height: 720),
             styleMask: [.titled, .closable, .miniaturizable, .resizable],
             backing: .buffered,
             defer: false
         )
         newWindow.title = "Claude Code Tools"
-        newWindow.minSize = NSSize(width: 640, height: 480)
+        newWindow.minSize = NSSize(width: 920, height: 560)
         newWindow.center()
         newWindow.isReleasedWhenClosed = false
 

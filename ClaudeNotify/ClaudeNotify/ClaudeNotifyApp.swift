@@ -15,6 +15,9 @@ final class AppCoordinator {
 
     var settingsWatcher: SettingsWatcher?
     var currentHealth: ConfigHealth?
+    /// Bumped whenever settings.json changes externally — ConfigView observes
+    /// this and reloads its in-memory copy of the file.
+    var settingsExternalChangeToken: Int = 0
     private var lastHealthySignature: String?
 
     init() {
@@ -123,6 +126,9 @@ final class AppCoordinator {
         let prevSignature = lastHealthySignature
         currentHealth = health
         lastHealthySignature = health.signature
+
+        // Bump token so ConfigView reloads its editor / toggles.
+        settingsExternalChangeToken &+= 1
 
         // Seed: first observation records state without notifying
         guard let prevSignature else { return }

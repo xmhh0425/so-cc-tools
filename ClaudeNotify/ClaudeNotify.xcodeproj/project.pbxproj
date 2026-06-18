@@ -36,6 +36,7 @@
 		A1000000000000000000001F /* ConfigView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000001F /* ConfigView.swift */; };
 		A10000000000000000000020 /* MenuPanelLayout.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000020 /* MenuPanelLayout.swift */; };
 		A10000000000000000000021 /* PanelFocusAutoCloser.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000021 /* PanelFocusAutoCloser.swift */; };
+		A10000000000000000000022 /* CodeTextEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000022 /* CodeTextEditor.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -70,6 +71,7 @@
 		A2000000000000000000001F /* ConfigView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConfigView.swift; sourceTree = "<group>"; };
 		A20000000000000000000020 /* MenuPanelLayout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuPanelLayout.swift; sourceTree = "<group>"; };
 		A20000000000000000000021 /* PanelFocusAutoCloser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PanelFocusAutoCloser.swift; sourceTree = "<group>"; };
+		A20000000000000000000022 /* CodeTextEditor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CodeTextEditor.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXResourcesBuildPhase section */
@@ -136,6 +138,7 @@
 				A2000000000000000000001D /* NotificationHistoryView.swift */,
 				A2000000000000000000001E /* SettingsWatcher.swift */,
 				A2000000000000000000001F /* ConfigView.swift */,
+				A20000000000000000000022 /* CodeTextEditor.swift */,
 			);
 			path = ClaudeNotify;
 			sourceTree = "<group>";
@@ -228,6 +231,7 @@
 				A1000000000000000000001F /* ConfigView.swift in Sources */,
 				A10000000000000000000020 /* MenuPanelLayout.swift in Sources */,
 				A10000000000000000000021 /* PanelFocusAutoCloser.swift in Sources */,
+				A10000000000000000000022 /* CodeTextEditor.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -304,7 +308,7 @@
 				CODE_SIGN_ENTITLEMENTS = "";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 3;
+				CURRENT_PROJECT_VERSION = 9;
 				DEVELOPMENT_TEAM = "";
 				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = NO;
@@ -330,7 +334,7 @@
 				CODE_SIGN_ENTITLEMENTS = "";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 3;
+				CURRENT_PROJECT_VERSION = 9;
 				DEVELOPMENT_TEAM = "";
 				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = NO;

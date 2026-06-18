@@ -1,29 +1,84 @@
 import SwiftUI
 
-/// Unified configuration page: grouped feature toggles + editable settings.json.
+/// Configuration page.
+/// Editor content is the single source of truth for the draft.
+/// Toggles derive from / mutate the editor text. Nothing is written to disk
+/// until the user clicks 保存.
 struct ConfigView: View {
     let coordinator: AppCoordinator
     let settingsManager: SettingsManager
 
-    @State private var hooks: [HookConfig] = []
-    @State private var statusLine: StatusLineConfig?
-    @State private var statusLineEnabled = false
-    @State private var statusLineInterval = 5
+    /// The draft. Toggles read/write this; saving persists it to disk.
     @State private var editorContent: String = ""
-    @State private var hasUnsavedChanges = false
+    /// Last-known on-disk content, used to detect dirty state and external changes.
+    @State private var diskContent: String = ""
     @State private var editorError: String?
+    @State private var externalChangeWhileEditing = false
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 24) {
-                statusBanner
-                notificationSection
-                statusLineSection
+        VStack(spacing: 0) {
+            VStack(alignment: .leading, spacing: 20) {
+                statusBanner.fixedSize()
+                togglesSection.fixedSize()
                 configEditorSection
+                    .frame(minWidth: 0, idealWidth: .infinity, maxWidth: .infinity, minHeight: 0, idealHeight: 300, alignment: .topLeading)
             }
-            .padding(24)
+            .padding(.horizontal, 24)
+            .padding(.top, 20)
+            .padding(.bottom, 24)
+            .background(Color(nsColor: .windowBackgroundColor))
+
+            saveBar
         }
-        .onAppear { refreshData() }
+        .onAppear { reloadFromDisk(resetEditor: true) }
+        .onChange(of: coordinator.settingsExternalChangeToken) { _, _ in
+            handleExternalChange()
+        }
+    }
+
+    // MARK: - Derived state (read editor JSON)
+
+    /// Parsed editor JSON, or nil if invalid.
+    private var parsedJSON: [String: Any]? {
+        guard let data = editorContent.data(using: .utf8),
+              let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
+        else { return nil }
+        return obj
+    }
+
+    private var isJSONValid: Bool { parsedJSON != nil }
+
+    private var hasUnsavedChanges: Bool { editorContent != diskContent }
+
+    /// Notification hooks present iff the editor JSON has all three events covered
+    /// by either HTTP /hook/ entries or command hooks pointing at notify-claude-notify.sh.
+    private var notificationHooksOn: Bool {
+        guard let json = parsedJSON,
+              let hooks = json["hooks"] as? [String: Any] else { return false }
+        return ["Stop", "Notification", "StopFailure"].allSatisfy { event in
+            guard let groups = hooks[event] as? [[String: Any]] else { return false }
+            return groups.contains { group in
+                guard let handlers = group["hooks"] as? [[String: Any]] else { return false }
+                return handlers.contains { h in
+                    let isHTTP = (h["type"] as? String) == "http"
+                        && ((h["url"] as? String)?.contains("/hook/") ?? false)
+                    let isCommand = (h["type"] as? String) == "command"
+                        && ((h["command"] as? String)?.contains("notify-claude-notify") ?? false)
+                    return isHTTP || isCommand
+                }
+            }
+        }
+    }
+
+    private var statusLineOn: Bool {
+        guard let json = parsedJSON else { return false }
+        return json["statusLine"] is [String: Any]
+    }
+
+    private var statusLineInterval: Int {
+        guard let json = parsedJSON,
+              let sl = json["statusLine"] as? [String: Any] else { return 5 }
+        return sl["refreshInterval"] as? Int ?? 5
     }
 
     // MARK: - Server Status
@@ -44,175 +99,150 @@ struct ConfigView: View {
         }
     }
 
-    // MARK: - Notification Section
+    // MARK: - Toggles
 
-    private var notificationSection: some View {
+    private var togglesSection: some View {
         VStack(alignment: .leading, spacing: 10) {
-            SectionHeader("通知")
+            SectionHeader("配置")
 
             toggleCard {
                 settingsToggleRow(
                     label: "通知 Hooks",
-                    description: "任务完成、等待输入、API 错误时发送通知",
-                    isOn: isAllNotificationHooksPresent()
+                    description: "Stop / Notification / StopFailure — 任务完成、等待输入、API 错误时通知",
+                    isOn: notificationHooksOn,
+                    disabled: !isJSONValid
                 ) {
-                    toggleAllNotificationHooks(install: !isAllNotificationHooksPresent())
+                    mutateJSON { setNotificationHooks(in: &$0, enabled: !notificationHooksOn) }
                 }
 
                 Divider()
 
                 settingsToggleRow(
-                    label: "桌面浮窗通知",
-                    description: "任务完成或需要输入时显示浮动通知窗口",
-                    isOn: coordinator.settings.floatingNotificationEnabled
+                    label: "状态栏",
+                    description: "在终端显示模型、上下文用量、Skill 历史",
+                    isOn: statusLineOn,
+                    disabled: !isJSONValid
                 ) {
-                    coordinator.settings.floatingNotificationEnabled.toggle()
+                    mutateJSON { setStatusLine(in: &$0, enabled: !statusLineOn) }
                 }
 
-                Divider()
-
-                settingsToggleRow(
-                    label: "系统通知",
-                    description: "通过 macOS 系统通知中心发送通知",
-                    isOn: coordinator.settings.systemNotificationEnabled
-                ) {
-                    coordinator.settings.systemNotificationEnabled.toggle()
-                }
-
-                Divider()
-
-                settingsToggleRow(
-                    label: "提示音",
-                    description: "收到通知时播放提示音",
-                    isOn: coordinator.settings.soundEnabled
-                ) {
-                    coordinator.settings.soundEnabled.toggle()
-                }
-            }
-        }
-    }
-
-    // MARK: - StatusLine Section
-
-    private var statusLineSection: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            SectionHeader("状态栏")
-
-            toggleCard {
-                settingsToggleRow(
-                    label: "启用状态栏",
-                    description: "在终端显示模型信息、上下文用量、Skill 历史",
-                    isOn: statusLineEnabled
-                ) {
-                    statusLineEnabled.toggle()
-                    saveStatusLine()
-                }
-
-                if statusLineEnabled {
+                if statusLineOn {
                     Divider()
-
                     HStack {
                         Text("刷新间隔")
                             .font(.system(size: 13))
                         Spacer()
-                        Stepper("\(statusLineInterval) 秒", value: $statusLineInterval, in: 1...30)
-                            .font(.system(size: 12))
-                            .fixedSize()
-                            .onChange(of: statusLineInterval) { _, _ in saveStatusLine() }
+                        Stepper(
+                            "\(statusLineInterval) 秒",
+                            value: Binding(
+                                get: { statusLineInterval },
+                                set: { newValue in
+                                    mutateJSON { setStatusLineInterval(in: &$0, seconds: newValue) }
+                                }
+                            ),
+                            in: 1...30
+                        )
+                        .font(.system(size: 12))
+                        .fixedSize()
+                        .disabled(!isJSONValid)
                     }
                     .padding(.vertical, 6)
-
-                    Divider()
-
-                    settingsToggleRow(
-                        label: "Skill 追踪",
-                        description: "PreToolUse — 在状态栏记录 Skill 使用历史",
-                        isOn: isCommandHookPresent(key: "hook-pre-skill")
-                    ) {
-                        toggleCommandHook(event: "PreToolUse")
-                    }
-
-                    Divider()
-
-                    settingsToggleRow(
-                        label: "命令追踪",
-                        description: "UserPromptExpansion — 追踪 / 命令执行",
-                        isOn: isCommandHookPresent(key: "hook-skill-tracker")
-                    ) {
-                        toggleCommandHook(event: "UserPromptExpansion")
-                    }
                 }
             }
         }
     }
 
-    // MARK: - Config Editor
+    // MARK: - Editor
 
     private var configEditorSection: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            HStack {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("配置文件")
-                        .font(.system(size: 13, weight: .semibold))
-                    Text(settingsManager.settingsPath.path)
-                        .font(.system(size: 10, design: .monospaced))
-                        .foregroundStyle(.tertiary)
-                        .lineLimit(1)
-                        .truncationMode(.middle)
-                }
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .firstTextBaseline) {
+                Text("配置文件")
+                    .font(.system(size: 13, weight: .semibold))
                 Spacer()
-                HStack(spacing: 8) {
-                    if hasUnsavedChanges {
-                        Button("还原") {
-                            editorContent = readRawJSON()
-                            hasUnsavedChanges = false
-                            editorError = nil
-                        }
-                        .controlSize(.small)
-                    }
-                    Button {
-                        saveEditorContent()
-                    } label: {
-                        Label("保存", systemImage: "square.and.arrow.down")
-                            .font(.system(size: 12, weight: .medium))
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .controlSize(.small)
-                    .disabled(!hasUnsavedChanges)
-                }
-            }
-            .padding(.horizontal, 14)
-            .padding(.vertical, 10)
-
-            Divider()
-
-            if let error = editorError {
-                HStack(spacing: 6) {
-                    Image(systemName: "exclamationmark.triangle.fill")
-                        .foregroundStyle(.orange)
-                        .font(.system(size: 11))
-                    Text(error)
-                        .font(.system(size: 11))
-                        .foregroundStyle(.orange)
-                }
-                .padding(.horizontal, 14)
-                .padding(.vertical, 8)
-                .background(Color.orange.opacity(0.08))
+                Text(settingsManager.settingsPath.path)
+                    .font(.system(size: 10, design: .monospaced))
+                    .foregroundStyle(.tertiary)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
             }
 
-            TextEditor(text: $editorContent)
-                .font(.system(size: 12, design: .monospaced))
-                .scrollContentBackground(.hidden)
-                .padding(.horizontal, 10)
-                .padding(.vertical, 8)
-                .frame(minHeight: 200, maxHeight: 400)
+            if externalChangeWhileEditing {
+                infoBanner(
+                    icon: "arrow.triangle.2.circlepath",
+                    color: .blue,
+                    text: "文件已被外部修改。点「重新加载」放弃当前改动并读取最新内容。"
+                )
+            } else if let error = editorError {
+                infoBanner(icon: "exclamationmark.triangle.fill", color: .orange, text: error)
+            }
+
+            CodeTextEditor(text: $editorContent)
+                .padding(2)
+                .background(Color(nsColor: .textBackgroundColor))
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8)
+                        .stroke(
+                            isJSONValid ? Color(nsColor: .separatorColor) : Color.orange.opacity(0.6),
+                            lineWidth: 1
+                        )
+                )
+                .frame(minHeight: 240, maxHeight: .infinity)
                 .onChange(of: editorContent) { _, _ in
-                    hasUnsavedChanges = editorContent != readRawJSON()
-                    if hasUnsavedChanges { validateJSON(editorContent) }
+                    validateJSON(editorContent)
                 }
         }
-        .background(Color(nsColor: .controlBackgroundColor))
-        .clipShape(RoundedRectangle(cornerRadius: 8))
+    }
+
+    // MARK: - Bottom Save Bar
+
+    private var saveBar: some View {
+        HStack(spacing: 12) {
+            HStack(spacing: 6) {
+                if hasUnsavedChanges {
+                    Circle()
+                        .fill(.orange)
+                        .frame(width: 6, height: 6)
+                    Text("未保存的修改")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                } else {
+                    Circle()
+                        .fill(.green)
+                        .frame(width: 6, height: 6)
+                    Text("已同步磁盘")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                }
+            }
+
+            Spacer()
+
+            Button {
+                reloadFromDisk(resetEditor: true)
+            } label: {
+                Label("重新加载", systemImage: "arrow.clockwise")
+                    .font(.system(size: 12))
+            }
+            .controlSize(.regular)
+
+            Button {
+                saveEditorContent()
+            } label: {
+                Label("保存", systemImage: "square.and.arrow.down")
+                    .font(.system(size: 12, weight: .medium))
+            }
+            .buttonStyle(.borderedProminent)
+            .controlSize(.regular)
+            .disabled(!hasUnsavedChanges || !isJSONValid)
+        }
+        .padding(.horizontal, 24)
+        .padding(.vertical, 12)
+        .background(.bar)
+        .overlay(alignment: .top) {
+            Divider()
+        }
     }
 
     // MARK: - Shared Components
@@ -233,11 +263,27 @@ struct ConfigView: View {
         .clipShape(RoundedRectangle(cornerRadius: 8))
     }
 
-    /// A settings-style toggle row: label + description left, switch right.
+    private func infoBanner(icon: String, color: Color, text: String) -> some View {
+        HStack(spacing: 6) {
+            Image(systemName: icon)
+                .foregroundStyle(color)
+                .font(.system(size: 11))
+            Text(text)
+                .font(.system(size: 11))
+                .foregroundStyle(color)
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 6)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(color.opacity(0.08))
+        .clipShape(RoundedRectangle(cornerRadius: 6))
+    }
+
     private func settingsToggleRow(
         label: String,
         description: String,
         isOn: Bool,
+        disabled: Bool,
         action: @escaping () -> Void
     ) -> some View {
         Button(action: action) {
@@ -245,10 +291,10 @@ struct ConfigView: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(label)
                         .font(.system(size: 13))
-                        .foregroundStyle(.primary)
+                        .foregroundStyle(disabled ? .tertiary : .primary)
                     Text(description)
                         .font(.system(size: 11))
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(disabled ? .quaternary : .secondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 Spacer()
@@ -262,103 +308,103 @@ struct ConfigView: View {
                             .shadow(color: .black.opacity(0.15), radius: 1)
                             .offset(x: isOn ? 8 : -8)
                     )
+                    .opacity(disabled ? 0.4 : 1)
                     .animation(.easeInOut(duration: 0.15), value: isOn)
             }
             .padding(.vertical, 8)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .disabled(disabled)
     }
 
-    // MARK: - Hook Queries
+    // MARK: - JSON Mutation (editor as source of truth)
 
-    private func isAllNotificationHooksPresent() -> Bool {
-        ["Stop", "Notification", "StopFailure"].allSatisfy {
-            isNotificationHookPresent(event: $0)
-        }
+    /// Parse → mutate → re-serialize. No-op if JSON is invalid (toggle disabled).
+    private func mutateJSON(_ mutator: (inout [String: Any]) -> Void) {
+        guard var json = parsedJSON else { return }
+        mutator(&json)
+        guard let data = try? JSONSerialization.data(
+            withJSONObject: json,
+            options: [.prettyPrinted, .sortedKeys]
+        ),
+        let text = String(data: data, encoding: .utf8)
+        else { return }
+        editorContent = text
     }
 
-    private func isNotificationHookPresent(event: String) -> Bool {
-        hooks.contains { $0.event == event && $0.type == .http && $0.target.contains("/hook/") }
-    }
+    private func setNotificationHooks(in json: inout [String: Any], enabled: Bool) {
+        var hooks = json["hooks"] as? [String: Any] ?? [:]
+        let port = coordinator.settings.port
+        let mapping: [(event: String, path: String)] = [
+            ("Stop", "stop"),
+            ("Notification", "notification"),
+            ("StopFailure", "stopfailure"),
+        ]
 
-    private func isCommandHookPresent(key: String) -> Bool {
-        hooks.contains { $0.type == .command && $0.target.contains(key) }
-    }
-
-    // MARK: - Toggle Actions
-
-    private func toggleAllNotificationHooks(install: Bool) {
-        let events = ["Stop", "Notification", "StopFailure"]
-        let hookPaths = ["stop", "notification", "stopfailure"]
-        do {
-            if install {
-                for (event, path) in zip(events, hookPaths) {
-                    let config = HookConfig(
-                        event: event, matcher: "", type: .http,
-                        target: "http://127.0.0.1:\(coordinator.settings.port)/hook/\(path)"
-                    )
-                    try settingsManager.ensureHook(config)
-                }
-            } else {
-                for event in events {
-                    try settingsManager.uninstallHook(event: event, targetContains: "/hook/")
+        for (event, path) in mapping {
+            var eventGroups = hooks[event] as? [[String: Any]] ?? []
+            // Drop any existing /hook/ HTTP entry AND command-type
+            // notify-claude-notify entries for dedup.
+            eventGroups.removeAll { group in
+                guard let handlers = group["hooks"] as? [[String: Any]] else { return false }
+                return handlers.contains { h in
+                    let isHookHTTP = (h["type"] as? String) == "http"
+                        && ((h["url"] as? String)?.contains("/hook/") ?? false)
+                    let isCommandNotify = (h["type"] as? String) == "command"
+                        && ((h["command"] as? String)?.contains("notify-claude-notify") ?? false)
+                    return isHookHTTP || isCommandNotify
                 }
             }
-            refreshData()
-        } catch {
-            print("Toggle notification hooks error: \(error)")
-        }
-    }
-
-    private func toggleCommandHook(event: String) {
-        do {
-            if isCommandHookPresent(key: commandDedupKey(event)) {
-                try settingsManager.uninstallHook(event: event, targetContains: commandDedupKey(event))
-            } else {
-                let existing = hooks.first { $0.event == event && $0.type == .command }
-                let base = SettingsManager.resolveRepoBase(from: hooks)
-                let target: String
-                if let existing {
-                    target = existing.target
-                } else {
-                    switch event {
-                    case "PreToolUse": target = "bash \(base)/statusline/hook-pre-skill.sh"
-                    case "UserPromptExpansion": target = "bash \(base)/statusline/hook-skill-tracker.sh"
-                    default: return
-                    }
-                }
-                let matcher = event == "PreToolUse" ? "Skill" : ".*"
-                try settingsManager.ensureHook(HookConfig(event: event, matcher: matcher, type: .command, target: target))
+            if enabled {
+                let url = "http://127.0.0.1:\(port)/hook/\(path)"
+                eventGroups.append([
+                    "matcher": "",
+                    "hooks": [["type": "http", "url": url]],
+                ])
             }
-            refreshData()
-        } catch {
-            print("Toggle command hook error: \(error)")
+            if eventGroups.isEmpty {
+                hooks.removeValue(forKey: event)
+            } else {
+                hooks[event] = eventGroups
+            }
         }
-    }
 
-    private func commandDedupKey(_ event: String) -> String {
-        switch event {
-        case "PreToolUse": return "hook-pre-skill"
-        case "UserPromptExpansion": return "hook-skill-tracker"
-        default: return event
-        }
-    }
-
-    // MARK: - Actions
-
-    private func saveStatusLine() {
-        if statusLineEnabled {
-            let config = StatusLineConfig(
-                enabled: true,
-                command: statusLine?.command ?? "bash ~/AI/so-cc-tools/statusline/statusline.sh",
-                refreshInterval: statusLineInterval
-            )
-            try? settingsManager.setStatusLine(config)
+        if hooks.isEmpty {
+            json.removeValue(forKey: "hooks")
         } else {
-            try? settingsManager.setStatusLine(nil)
+            json["hooks"] = hooks
         }
     }
+
+    private func setStatusLine(in json: inout [String: Any], enabled: Bool) {
+        if enabled {
+            // Preserve existing command/refreshInterval if present, otherwise default.
+            let existing = json["statusLine"] as? [String: Any]
+            let command = (existing?["command"] as? String).flatMap { $0.isEmpty ? nil : $0 }
+                ?? "bash ~/AI/so-cc-tools/statusline/statusline.sh"
+            let interval = existing?["refreshInterval"] as? Int ?? 5
+            json["statusLine"] = [
+                "type": "command",
+                "command": command,
+                "refreshInterval": interval,
+            ]
+        } else {
+            json.removeValue(forKey: "statusLine")
+        }
+    }
+
+    private func setStatusLineInterval(in json: inout [String: Any], seconds: Int) {
+        var sl = json["statusLine"] as? [String: Any] ?? [:]
+        sl["refreshInterval"] = seconds
+        if sl["type"] == nil { sl["type"] = "command" }
+        if sl["command"] == nil {
+            sl["command"] = "bash ~/AI/so-cc-tools/statusline/statusline.sh"
+        }
+        json["statusLine"] = sl
+    }
+
+    // MARK: - Disk I/O
 
     private func saveEditorContent() {
         guard let data = editorContent.data(using: .utf8) else {
@@ -370,13 +416,46 @@ struct ConfigView: View {
             return
         }
         do {
+            coordinator.settingsWatcher?.beginSelfWrite()
             try data.write(to: settingsManager.settingsPath, options: .atomic)
-            hasUnsavedChanges = false
+            coordinator.settingsWatcher?.endSelfWrite()
+            diskContent = editorContent
             editorError = nil
-            refreshData()
+            externalChangeWhileEditing = false
+            coordinator.currentHealth = settingsManager.checkHealth()
         } catch {
+            coordinator.settingsWatcher?.endSelfWrite()
             editorError = "保存失败: \(error.localizedDescription)"
         }
+    }
+
+    private func reloadFromDisk(resetEditor: Bool) {
+        diskContent = readRawJSON()
+        if resetEditor {
+            editorContent = diskContent
+            editorError = nil
+        }
+        externalChangeWhileEditing = false
+        coordinator.currentHealth = settingsManager.checkHealth()
+    }
+
+    /// External change notification from SettingsWatcher.
+    /// - If user has no draft, silently refresh both editor and diskContent.
+    /// - Otherwise show a banner; user must click 重新加载 to discard their draft.
+    private func handleExternalChange() {
+        let latest = readRawJSON()
+        if hasUnsavedChanges {
+            // Don't stomp the user's draft. Just note the disk drift.
+            if latest != diskContent {
+                externalChangeWhileEditing = true
+            }
+            diskContent = latest
+        } else {
+            diskContent = latest
+            editorContent = latest
+            externalChangeWhileEditing = false
+        }
+        coordinator.currentHealth = settingsManager.checkHealth()
     }
 
     private func validateJSON(_ text: String) {
@@ -389,18 +468,6 @@ struct ConfigView: View {
         } else {
             editorError = "JSON 格式无效"
         }
-    }
-
-    private func refreshData() {
-        hooks = settingsManager.readAllHooks()
-        statusLine = settingsManager.readStatusLine()
-        statusLineEnabled = statusLine != nil
-        statusLineInterval = statusLine?.refreshInterval ?? 5
-        coordinator.currentHealth = settingsManager.checkHealth()
-        let raw = readRawJSON()
-        editorContent = raw
-        hasUnsavedChanges = false
-        editorError = nil
     }
 
     private func readRawJSON() -> String {

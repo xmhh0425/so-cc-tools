@@ -9,9 +9,6 @@
 
 set -euo pipefail
 
-MERGE_FILE=$(mktemp /tmp/cc-skills-merge.XXXXXX)
-trap 'rm -f "$MERGE_FILE"' EXIT
-
 # Colors - shared across dark/light themes
 C_CYAN=$'\033[36m'
 C_GREEN=$'\033[32m'
