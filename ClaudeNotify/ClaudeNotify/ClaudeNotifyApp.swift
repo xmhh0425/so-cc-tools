@@ -247,8 +247,8 @@ final class StatusBarController: NSObject {
         super.init()
 
         if let button = statusItem.button {
-            let image = NSImage(systemSymbolName: "bell.fill", accessibilityDescription: "CC Tools")
-                ?? NSImage(named: "MenuBarIcon")
+            let image = NSImage(named: "MenuBarIcon")
+                ?? NSImage(systemSymbolName: "bell.fill", accessibilityDescription: "CC Tools")
             image?.isTemplate = true
             image?.size = NSSize(width: 18, height: 18)
             button.image = image
