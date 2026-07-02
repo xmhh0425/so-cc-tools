@@ -16,9 +16,9 @@ final class HTTPServer {
 
     private var listener: NWListener?
     private var activeConnections: [ObjectIdentifier: NWConnection] = [:]
-    private let connectionQueue = DispatchQueue(label: "com.claude-notify.connections")
+    private let connectionQueue = DispatchQueue(label: "com.cc-tools.connections")
     private let port: UInt16
-    private let logger = Logger(subsystem: "com.claude-notify", category: "HTTPServer")
+    private let logger = Logger(subsystem: "com.cc-tools", category: "HTTPServer")
 
     /// Callback when a hook event is received.
     var onHookReceived: ((HookEvent, HookPayload) -> Void)?
@@ -63,7 +63,7 @@ final class HTTPServer {
                 }
             }
 
-            let queue = DispatchQueue(label: "com.claude-notify.server", qos: .userInitiated)
+            let queue = DispatchQueue(label: "com.cc-tools.server", qos: .userInitiated)
             listener?.start(queue: queue)
         } catch {
             lastError = "Failed to start server: \(error.localizedDescription)"
@@ -93,7 +93,7 @@ final class HTTPServer {
             }
         }
 
-        connection.start(queue: DispatchQueue(label: "com.claude-notify.conn.\(id)", qos: .userInitiated))
+        connection.start(queue: DispatchQueue(label: "com.cc-tools.conn.\(id)", qos: .userInitiated))
 
         // Use a reference-type wrapper so the closure can mutate the accumulated data
         let buffer = DataBuffer()

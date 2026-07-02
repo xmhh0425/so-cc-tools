@@ -17,7 +17,7 @@ SETTINGS="$HOME/.claude/settings.json"
 # 脚本所在目录即 so-cc-tools 仓库根目录（本脚本放在仓库根目录）
 REPO_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
-NOTIFY="bash $REPO_DIR/notify/notify-claude-notify.sh"
+NOTIFY="bash $REPO_DIR/notify/notify-cc-tools.sh"
 STATUSLINE="bash $REPO_DIR/statusline/statusline.sh"
 PRESKILL="bash $REPO_DIR/statusline/hook-pre-skill.sh"
 TRACKER="bash $REPO_DIR/statusline/hook-skill-tracker.sh"
@@ -52,9 +52,9 @@ jq \
         + [{matcher: $matcher, hooks: [{type: "command", command: $command}]}]
       );
   .statusLine = {type: "command", command: $sl, refreshInterval: 5}
-  | ensure("Stop";                ""     ; $notify  ; "notify-claude-notify.sh")
-  | ensure("Notification";        ""     ; $notify  ; "notify-claude-notify.sh")
-  | ensure("StopFailure";         ""     ; $notify  ; "notify-claude-notify.sh")
+  | ensure("Stop";                ""     ; $notify  ; "notify-cc-tools.sh")
+  | ensure("Notification";        ""     ; $notify  ; "notify-cc-tools.sh")
+  | ensure("StopFailure";         ""     ; $notify  ; "notify-cc-tools.sh")
   | ensure("PreToolUse";          "Skill"; $preskill; "hook-pre-skill.sh")
   | ensure("UserPromptExpansion"; ".*"   ; $tracker ; "hook-skill-tracker.sh")
 ' "$SETTINGS" > "$TMP"

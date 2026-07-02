@@ -51,7 +51,7 @@ struct ConfigView: View {
     private var hasUnsavedChanges: Bool { editorContent != diskContent }
 
     /// Notification hooks present iff the editor JSON has all three events covered
-    /// by either HTTP /hook/ entries or command hooks pointing at notify-claude-notify.sh.
+    /// by either HTTP /hook/ entries or command hooks pointing at notify-cc-tools.sh.
     private var notificationHooksOn: Bool {
         guard let json = parsedJSON,
               let hooks = json["hooks"] as? [String: Any] else { return false }
@@ -63,7 +63,7 @@ struct ConfigView: View {
                     let isHTTP = (h["type"] as? String) == "http"
                         && ((h["url"] as? String)?.contains("/hook/") ?? false)
                     let isCommand = (h["type"] as? String) == "command"
-                        && ((h["command"] as? String)?.contains("notify-claude-notify") ?? false)
+                        && ((h["command"] as? String)?.contains("notify-cc-tools") ?? false)
                     return isHTTP || isCommand
                 }
             }
@@ -436,14 +436,14 @@ struct ConfigView: View {
         for (event, path) in mapping {
             var eventGroups = hooks[event] as? [[String: Any]] ?? []
             // Drop any existing /hook/ HTTP entry AND command-type
-            // notify-claude-notify entries for dedup.
+            // notify-cc-tools entries for dedup.
             eventGroups.removeAll { group in
                 guard let handlers = group["hooks"] as? [[String: Any]] else { return false }
                 return handlers.contains { h in
                     let isHookHTTP = (h["type"] as? String) == "http"
                         && ((h["url"] as? String)?.contains("/hook/") ?? false)
                     let isCommandNotify = (h["type"] as? String) == "command"
-                        && ((h["command"] as? String)?.contains("notify-claude-notify") ?? false)
+                        && ((h["command"] as? String)?.contains("notify-cc-tools") ?? false)
                     return isHookHTTP || isCommandNotify
                 }
             }

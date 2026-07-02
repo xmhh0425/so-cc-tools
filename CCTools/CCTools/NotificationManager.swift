@@ -6,7 +6,7 @@ import os.log
 @Observable
 final class NotificationManager {
     private(set) var isAuthorized = false
-    private let logger = Logger(subsystem: "com.claude-notify", category: "Notification")
+    private let logger = Logger(subsystem: "com.cc-tools", category: "Notification")
 
     func requestAuthorization() {
         UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { [weak self] granted, error in

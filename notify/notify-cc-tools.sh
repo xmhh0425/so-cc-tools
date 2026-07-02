@@ -1,8 +1,8 @@
 #!/bin/bash
-# Claude Code hook → ClaudeNotify HTTP bridge
-# Reads JSON from stdin, posts to the ClaudeNotify app on localhost.
+# Claude Code hook → CC Tools HTTP bridge
+# Reads JSON from stdin, posts to the CC Tools app on localhost.
 #
-# Port resolution: reads ~/.config/claude-notify/port (written by the app),
+# Port resolution: reads ~/.config/cc-tools/port (written by the app),
 # falls back to 18765 (the default).
 
 INPUT=$(cat 2>/dev/null)
@@ -15,7 +15,7 @@ case "$EVENT" in
   *)             exit 0 ;;
 esac
 
-PORT_FILE="$HOME/.config/claude-notify/port"
+PORT_FILE="$HOME/.config/cc-tools/port"
 if [ -f "$PORT_FILE" ] && [ -r "$PORT_FILE" ]; then
   PORT=$(tr -d '[:space:]' < "$PORT_FILE")
 fi
