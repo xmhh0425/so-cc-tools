@@ -35,7 +35,7 @@ final class ManagementWindowController {
             backing: .buffered,
             defer: false
         )
-        newWindow.title = "Claude Code Tools"
+        newWindow.title = "CC Tools"
         newWindow.minSize = NSSize(width: 920, height: 560)
         newWindow.center()
         newWindow.isReleasedWhenClosed = false

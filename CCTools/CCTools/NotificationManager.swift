@@ -31,19 +31,19 @@ final class NotificationManager {
 
         switch event {
         case .stop:
-            content.title = "Claude Code · 任务完成"
+            content.title = "CC Tools · 任务完成"
             content.body = message
             if soundEnabled {
                 content.sound = UNNotificationSound(named: UNNotificationSoundName("Glass.aiff"))
             }
         case .notification:
-            content.title = "Claude Code · 等待输入"
+            content.title = "CC Tools · 等待输入"
             content.body = message
             if soundEnabled {
                 content.sound = UNNotificationSound.default
             }
         case .stopFailure:
-            content.title = "Claude Code · 发生错误"
+            content.title = "CC Tools · 发生错误"
             content.body = message
             if soundEnabled {
                 content.sound = UNNotificationSound.default

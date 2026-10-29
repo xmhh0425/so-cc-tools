@@ -12,6 +12,14 @@ final class AppCoordinator {
     let server: HTTPServer
     let managementWindow: ManagementWindowController
     let settingsManager: SettingsManager
+    /// Stop 通知的延迟确认器（见 StopNotificationDebouncer）。
+    private let stopDebouncer = StopNotificationDebouncer()
+
+    /// 一轮结束的快速检测器（见 TranscriptWatcher）。
+    private let transcriptWatcher = TranscriptWatcher()
+
+    /// beginActivity 返回的 token 必须持有，否则 activity 立即失效（App Nap / 睡眠抑制都会失效）。
+    private var systemActivity: NSObjectProtocol?
 
     var settingsWatcher: SettingsWatcher?
     var currentHealth: ConfigHealth?
@@ -76,19 +84,82 @@ final class AppCoordinator {
 
             let project = Self.resolveProjectName(from: payload.cwd)
 
-            history.add(event: event, message: message, project: project)
-
-            if settings.floatingNotificationEnabled {
-                floatingNotifications.show(event: event, message: message, project: project)
+            switch event {
+            case .stop:
+                handleStop(payload: payload, message: message, project: project)
+            case .notification:
+                handleNotification(payload: payload, message: message, project: project)
+            case .stopFailure, .configBroken:
+                deliver(event: event, message: message, project: project)
             }
+        }
 
-            if settings.systemNotificationEnabled {
-                notifications.postNotification(
-                    event: event,
-                    message: message,
-                    soundEnabled: settings.soundEnabled
+        // 用户提交输入：撤销可能挂着的提醒，并开始快速检测这一轮何时结束
+        server.onUserPromptSubmit = { [weak self] payload in
+            guard let self, let sessionID = payload.session_id else { return }
+            stopDebouncer.cancelPending(sessionID: sessionID)
+            if settings.fastTurnDetectionEnabled, let path = payload.transcript_path {
+                transcriptWatcher.startWatching(
+                    sessionID: sessionID,
+                    transcriptPath: path,
+                    cwd: payload.cwd
                 )
             }
+        }
+    }
+
+    /// Stop 钩子每轮回复结束都会触发，这里做“延迟确认”：
+    /// 后台任务还在跑就不算完成；延迟期间会话继续活动则撤销这次通知。
+    private func handleStop(payload: HookPayload, message: String, project: String?) {
+        let delay = settings.stopNotifyDelaySeconds
+        guard delay > 0, let sessionID = payload.session_id else {
+            deliver(event: .stop, message: message, project: project)
+            return
+        }
+        if payload.hasActiveBackgroundWork { return }
+
+        stopDebouncer.schedule(
+            sessionID: sessionID,
+            transcriptPath: payload.transcript_path,
+            turnPromptID: payload.prompt_id,
+            delay: TimeInterval(delay),
+            dedupWindow: TimeInterval(settings.stopNotifyDedupSeconds)
+        ) { [weak self] in
+            self?.deliver(event: .stop, message: message, project: project)
+        }
+    }
+
+    /// idle 提醒（“Claude is waiting for your input”）默认不弹：只在“一轮回复结束”
+    /// （Stop）时提醒。开启后同一会话只保留一条：有等待确认的 Stop 时让位给 Stop
+    /// 通知，刚通知过则跳过。权限请求等其他类型不受影响，照常立即通知。
+    private func handleNotification(payload: HookPayload, message: String, project: String?) {
+        if payload.notification_type == "idle_prompt" {
+            guard settings.idleNotificationEnabled else { return }
+            if let sessionID = payload.session_id,
+               !stopDebouncer.shouldDeliverIdleNotification(
+                   sessionID: sessionID,
+                   dedupWindow: TimeInterval(settings.stopNotifyDedupSeconds)
+               ) {
+                return
+            }
+        }
+        deliver(event: .notification, message: message, project: project)
+    }
+
+    /// 落盘历史 + 按设置展示浮窗 / 系统通知。
+    private func deliver(event: HookEvent, message: String, project: String?) {
+        history.add(event: event, message: message, project: project)
+
+        if settings.floatingNotificationEnabled {
+            floatingNotifications.show(event: event, message: message, project: project)
+        }
+
+        if settings.systemNotificationEnabled {
+            notifications.postNotification(
+                event: event,
+                message: message,
+                soundEnabled: settings.soundEnabled
+            )
         }
     }
 
@@ -96,9 +167,10 @@ final class AppCoordinator {
         server.start()
         writePortFile()
         notifications.requestAuthorization()
+        setupTurnWatcher()
 
-        ProcessInfo.processInfo.beginActivity(
-            options: [.idleSystemSleepDisabled, .idleDisplaySleepDisabled],
+        systemActivity = ProcessInfo.processInfo.beginActivity(
+            options: [.userInitiated, .idleSystemSleepDisabled, .idleDisplaySleepDisabled],
             reason: "Listening for Claude Code hooks"
         )
     }
@@ -116,6 +188,47 @@ final class AppCoordinator {
             Logger(subsystem: "com.cc-tools", category: "Coordinator")
                 .error("Failed to write port file: \(error)")
         }
+    }
+
+    /// 快速检测器的接线：前台闸门 + 结束回调（走与 Stop 相同的投递路径，并打标记去重）。
+    private func setupTurnWatcher() {
+        transcriptWatcher.shouldNotify = { [weak self] in
+            guard let self else { return true }
+            guard settings.terminalFocusSuppressesNotifications else { return true }
+            return !Self.isTerminalFrontmost()
+        }
+        transcriptWatcher.onTurnEnded = { [weak self] sessionID, transcriptPath, cwd in
+            guard let self else { return }
+            let message = TranscriptReader.lastUserMessage(from: transcriptPath) ?? "Claude 完成了任务"
+            let project = Self.resolveProjectName(from: cwd)
+            deliver(event: .stop, message: message, project: project)
+            stopDebouncer.markNotified(
+                sessionID: sessionID,
+                dedupWindow: TimeInterval(settings.stopNotifyDedupSeconds)
+            )
+            transcriptWatcher.stopWatching(sessionID: sessionID)
+        }
+        transcriptWatcher.start()
+    }
+
+    /// 前台是终端类应用时，认为用户就坐在那儿看输出，不再弹提醒（可在通知页关掉）。
+    private static let terminalBundleIDs: Set<String> = [
+        "com.apple.Terminal",
+        "com.googlecode.iterm2",
+        "com.mitchellh.ghostty",
+        "com.github.wez.wezterm",
+        "dev.warp.Warp-Stable",
+        "io.alacritty",
+        "net.kovidgoyal.kitty",
+        "co.zeit.hyper",
+        "com.microsoft.VSCode",
+        "com.microsoft.VSCodeInsiders",
+        "com.todesktop.230313mzl4w4u92",
+    ]
+
+    private static func isTerminalFrontmost() -> Bool {
+        guard let bundleID = NSWorkspace.shared.frontmostApplication?.bundleIdentifier else { return false }
+        return terminalBundleIDs.contains(bundleID)
     }
 
     // MARK: - Config Drift Detection
