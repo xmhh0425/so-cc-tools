@@ -22,7 +22,7 @@ A macOS menu bar app for [SO CC Tools](../) — receives real-time notifications
 ```bash
 git clone https://github.com/xmhh0425/so-cc-tools.git ~/AI/so-cc-tools
 cd ~/AI/so-cc-tools
-open ClaudeNotify/ClaudeNotify.xcodeproj
+open CCTools/CCTools.xcodeproj
 # Build & Run (⌘R)
 ```
 

@@ -4,11 +4,11 @@ import os.log
 /// kqueue-based file watcher for ~/.claude/settings.json.
 /// Re-establishes on delete/rename (CC Switch atomic write pattern).
 final class SettingsWatcher {
-    private let logger = Logger(subsystem: "com.claude-notify", category: "SettingsWatcher")
+    private let logger = Logger(subsystem: "com.cc-tools", category: "SettingsWatcher")
     private let fileURL: URL
     private var source: DispatchSourceFileSystemObject?
     private var fileDescriptor: Int32 = -1
-    private let queue = DispatchQueue(label: "com.claude-notify.settings-watch")
+    private let queue = DispatchQueue(label: "com.cc-tools.settings-watch")
     private var debounceWork: DispatchWorkItem?
     private var retryWork: DispatchWorkItem?
     private var retryCount = 0

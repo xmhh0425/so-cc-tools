@@ -103,17 +103,17 @@ final class AppCoordinator {
         )
     }
 
-    /// Write the active port to ~/.config/claude-notify/port so that
-    /// shell hook scripts (notify-claude-notify.sh) can discover it.
+    /// Write the active port to ~/.config/cc-tools/port so that
+    /// shell hook scripts (notify-cc-tools.sh) can discover it.
     private func writePortFile() {
         let dir = FileManager.default.homeDirectoryForCurrentUser
-            .appendingPathComponent(".config/claude-notify")
+            .appendingPathComponent(".config/cc-tools")
         let file = dir.appendingPathComponent("port")
         do {
             try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
             try "\(settings.port)".write(to: file, atomically: true, encoding: .utf8)
         } catch {
-            Logger(subsystem: "com.claude-notify", category: "Coordinator")
+            Logger(subsystem: "com.cc-tools", category: "Coordinator")
                 .error("Failed to write port file: \(error)")
         }
     }
@@ -168,7 +168,7 @@ final class AppCoordinator {
         do {
             try settingsManager.repairManaged()
         } catch {
-            Logger(subsystem: "com.claude-notify", category: "Coordinator")
+            Logger(subsystem: "com.cc-tools", category: "Coordinator")
                 .error("repairManaged failed: \(error)")
         }
         let health = settingsManager.checkHealth()
@@ -207,7 +207,7 @@ final class AppCoordinator {
 }
 
 @main
-struct ClaudeNotifyApp: App {
+struct CCToolsApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
 
     var body: some Scene {

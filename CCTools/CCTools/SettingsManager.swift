@@ -17,13 +17,13 @@ struct HookConfig: Identifiable {
 
     /// Whether this hook is managed by this project (for display grouping).
     var isProjectHook: Bool {
-        target.contains("so-cc-tools") || target.contains("claude-tools") || target.contains("ClaudeNotify")
+        target.contains("so-cc-tools") || target.contains("claude-tools") || target.contains("CCTools")
     }
 
     /// Extract a short display name from the target (e.g. script filename).
     var shortTarget: String {
         if type == .http {
-            return "ClaudeNotify"
+            return "CCTools"
         }
         return URL(fileURLWithPath: target.replacingOccurrences(of: "bash ", with: "")).lastPathComponent
     }
@@ -38,7 +38,7 @@ struct StatusLineConfig {
 
 /// One unit of config this tool manages.
 struct ManagedHookSpec: Identifiable {
-    let id: String              // script filename used for dedup: "notify-claude-notify.sh", etc.
+    let id: String              // script filename used for dedup: "notify-cc-tools.sh", etc.
     let event: String           // "Stop", "PreToolUse", ...
     let matcher: String         // "", "Skill", ".*"
     let isNotificationHook: Bool
@@ -75,13 +75,13 @@ struct ConfigHealth {
 /// Manages the full ~/.claude/settings.json: hooks, statusLine, and all other fields.
 /// Preserves unknown fields — only touches what it understands.
 final class SettingsManager {
-    private let logger = Logger(subsystem: "com.claude-notify", category: "SettingsManager")
+    private let logger = Logger(subsystem: "com.cc-tools", category: "SettingsManager")
 
     /// Canonical list of hooks managed by this tool. Single source of truth.
     static let managedSpecs: [ManagedHookSpec] = [
-        ManagedHookSpec(id: "notify-claude-notify.sh", event: "Stop", matcher: "", isNotificationHook: true, displayName: "Stop（任务完成）"),
-        ManagedHookSpec(id: "notify-claude-notify.sh", event: "Notification", matcher: "", isNotificationHook: true, displayName: "Notification（等待输入）"),
-        ManagedHookSpec(id: "notify-claude-notify.sh", event: "StopFailure", matcher: "", isNotificationHook: true, displayName: "StopFailure（API 错误）"),
+        ManagedHookSpec(id: "notify-cc-tools.sh", event: "Stop", matcher: "", isNotificationHook: true, displayName: "Stop（任务完成）"),
+        ManagedHookSpec(id: "notify-cc-tools.sh", event: "Notification", matcher: "", isNotificationHook: true, displayName: "Notification（等待输入）"),
+        ManagedHookSpec(id: "notify-cc-tools.sh", event: "StopFailure", matcher: "", isNotificationHook: true, displayName: "StopFailure（API 错误）"),
     ]
 
     /// Public path for SettingsWatcher access.
@@ -189,7 +189,7 @@ final class SettingsManager {
 
         // notification hooks — only add if missing
         let health = checkHealth()
-        let notifyTarget = "bash \(repoBase)/notify/notify-claude-notify.sh"
+        let notifyTarget = "bash \(repoBase)/notify/notify-cc-tools.sh"
         for item in health.items {
             if !item.isPresent {
                 try ensureHook(HookConfig(event: item.event, matcher: "", type: .command, target: notifyTarget))

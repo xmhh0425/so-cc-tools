@@ -50,7 +50,7 @@ _resolve_proxy_name() {
   [ -n "$env_var" ] && [ -n "${!env_var:-}" ] && printf '%s' "${!env_var}"
 }
 
-_proxy=$(_resolve_proxy_name)
+_proxy=$(_resolve_proxy_name || true)
 if [ -n "$_proxy" ]; then model="$_proxy"; fi
 unset -f _resolve_proxy_name
 

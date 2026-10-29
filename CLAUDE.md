@@ -5,13 +5,13 @@
 SO CC Tools — Claude Code 实用工具集，三个组件：
 - `notify/` — 桌面通知脚本（OSC 777 / HTTP 桥接）
 - `statusline/` — 多行彩色状态栏脚本
-- `ClaudeNotify/` — macOS 菜单栏 app（SwiftUI），项目内称 "CC Tools"，承载通知、Hook 管理、设置编辑等功能
+- `CCTools/` — macOS 菜单栏 app（SwiftUI），项目内称 "CC Tools"，承载通知、Hook 管理、设置编辑等功能
 
 ## 构建与运行
 
 ```bash
 # CC Tools macOS app — Xcode 构建，零外部依赖，目标 macOS 14.0+
-open ClaudeNotify/ClaudeNotify.xcodeproj
+open CCTools/CCTools.xcodeproj
 # ⌘R 运行
 
 # Shell 脚本依赖：bash、jq
