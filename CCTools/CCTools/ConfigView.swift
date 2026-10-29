@@ -179,11 +179,11 @@ struct ConfigView: View {
                 color: .blue,
                 icon: "bell.badge",
                 title: "通知 Hooks",
-                description: "Stop / Notification / StopFailure — 任务完成、等待输入、API 错误时通知"
+                description: "Stop / Notification / StopFailure / UserPromptSubmit — 任务完成、等待输入、API 错误、开始新一轮时通知"
             ) {
                 settingsToggleRow(
                     label: "通知 Hooks",
-                    description: "Stop / Notification / StopFailure — 任务完成、等待输入、API 错误时通知",
+                    description: "Stop / Notification / StopFailure / UserPromptSubmit — 任务完成、等待输入、API 错误、开始新一轮时通知",
                     isOn: notificationHooksOn,
                     disabled: !isJSONValid
                 ) {
@@ -431,6 +431,7 @@ struct ConfigView: View {
             ("Stop", "stop"),
             ("Notification", "notification"),
             ("StopFailure", "stopfailure"),
+            ("UserPromptSubmit", "userpromptsubmit"),
         ]
 
         for (event, path) in mapping {

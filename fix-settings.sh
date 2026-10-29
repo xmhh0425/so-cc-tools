@@ -55,6 +55,7 @@ jq \
   | ensure("Stop";                ""     ; $notify  ; "notify-cc-tools.sh")
   | ensure("Notification";        ""     ; $notify  ; "notify-cc-tools.sh")
   | ensure("StopFailure";         ""     ; $notify  ; "notify-cc-tools.sh")
+  | ensure("UserPromptSubmit";    ""     ; $notify  ; "notify-cc-tools.sh")
   | ensure("PreToolUse";          "Skill"; $preskill; "hook-pre-skill.sh")
   | ensure("UserPromptExpansion"; ".*"   ; $tracker ; "hook-skill-tracker.sh")
 ' "$SETTINGS" > "$TMP"
@@ -71,5 +72,5 @@ trap - EXIT
 
 echo "✅ 已修复：$SETTINGS"
 echo "   备份：    $SETTINGS.bak"
-echo "   已写入：  statusLine + hooks(Stop/Notification/StopFailure/PreToolUse/UserPromptExpansion)"
+echo "   已写入：  statusLine + hooks(Stop/Notification/StopFailure/UserPromptSubmit/PreToolUse/UserPromptExpansion)"
 echo "   提示：    若当前会话未立即生效，重开一个 Claude Code 会话即可。"

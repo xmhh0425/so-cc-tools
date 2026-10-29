@@ -23,7 +23,7 @@ struct HookConfig: Identifiable {
     /// Extract a short display name from the target (e.g. script filename).
     var shortTarget: String {
         if type == .http {
-            return "CCTools"
+            return "CC Tools"
         }
         return URL(fileURLWithPath: target.replacingOccurrences(of: "bash ", with: "")).lastPathComponent
     }
@@ -82,6 +82,7 @@ final class SettingsManager {
         ManagedHookSpec(id: "notify-cc-tools.sh", event: "Stop", matcher: "", isNotificationHook: true, displayName: "Stop（任务完成）"),
         ManagedHookSpec(id: "notify-cc-tools.sh", event: "Notification", matcher: "", isNotificationHook: true, displayName: "Notification（等待输入）"),
         ManagedHookSpec(id: "notify-cc-tools.sh", event: "StopFailure", matcher: "", isNotificationHook: true, displayName: "StopFailure（API 错误）"),
+        ManagedHookSpec(id: "notify-cc-tools.sh", event: "UserPromptSubmit", matcher: "", isNotificationHook: true, displayName: "UserPromptSubmit（开始新一轮）"),
     ]
 
     /// Public path for SettingsWatcher access.

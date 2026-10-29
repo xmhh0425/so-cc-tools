@@ -9,10 +9,11 @@ INPUT=$(cat 2>/dev/null)
 EVENT=$(echo "$INPUT" | jq -r '.hook_event_name // ""' 2>/dev/null)
 
 case "$EVENT" in
-  Stop)          ENDPOINT="/hook/stop" ;;
-  Notification)  ENDPOINT="/hook/notification" ;;
-  StopFailure)   ENDPOINT="/hook/stopfailure" ;;
-  *)             exit 0 ;;
+  Stop)             ENDPOINT="/hook/stop" ;;
+  Notification)     ENDPOINT="/hook/notification" ;;
+  StopFailure)      ENDPOINT="/hook/stopfailure" ;;
+  UserPromptSubmit) ENDPOINT="/hook/userpromptsubmit" ;;
+  *)                exit 0 ;;
 esac
 
 PORT_FILE="$HOME/.config/cc-tools/port"

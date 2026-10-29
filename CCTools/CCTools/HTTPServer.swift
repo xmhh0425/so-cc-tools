@@ -22,6 +22,8 @@ final class HTTPServer {
 
     /// Callback when a hook event is received.
     var onHookReceived: ((HookEvent, HookPayload) -> Void)?
+    /// UserPromptSubmit（用户提交了输入）：不产生通知，只用于撤销挂起提醒并开始快速检测。
+    var onUserPromptSubmit: ((HookPayload) -> Void)?
 
     init(port: UInt16) {
         self.port = port
@@ -141,6 +143,21 @@ final class HTTPServer {
         // Only accept POST to our hook endpoints
         guard request.method == "POST" else {
             sendResponse(statusCode: 405, connection: connection)
+            return
+        }
+
+        // UserPromptSubmit 不走通知事件表：只用来撤销挂起提醒、开始快速检测
+        if request.path == "/hook/userpromptsubmit" {
+            guard let body = request.body,
+                  let payload = try? JSONDecoder().decode(HookPayload.self, from: body) else {
+                sendResponse(statusCode: 400, connection: connection)
+                return
+            }
+            logger.info("Received UserPromptSubmit hook")
+            DispatchQueue.main.async { [weak self] in
+                self?.onUserPromptSubmit?(payload)
+            }
+            sendResponse(statusCode: 200, connection: connection)
             return
         }
 

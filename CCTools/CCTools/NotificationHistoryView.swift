@@ -59,6 +59,111 @@ struct NotificationHistoryView: View {
 
             Divider()
 
+            // 空闲提醒开关
+            HStack(alignment: .top) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("空闲提醒")
+                        .font(.system(size: 12))
+                    Text("Claude 空闲等待输入时也提醒；关闭后只在完成一轮回复时提醒")
+                        .font(.system(size: 10))
+                        .foregroundStyle(.tertiary)
+                }
+                Spacer()
+                Toggle("", isOn: Binding(
+                    get: { coordinator.settings.idleNotificationEnabled },
+                    set: { coordinator.settings.idleNotificationEnabled = $0 }
+                ))
+                .labelsHidden()
+                .toggleStyle(.switch)
+                .controlSize(.small)
+            }
+
+            // 快速检测（更快的完成提醒）
+            HStack(alignment: .top) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("快速检测")
+                        .font(.system(size: 12))
+                    Text("盯住 transcript，一轮输出结束后几秒内提醒；Stop 钩子仍作为兜底")
+                        .font(.system(size: 10))
+                        .foregroundStyle(.tertiary)
+                }
+                Spacer()
+                Toggle("", isOn: Binding(
+                    get: { coordinator.settings.fastTurnDetectionEnabled },
+                    set: { coordinator.settings.fastTurnDetectionEnabled = $0 }
+                ))
+                .labelsHidden()
+                .toggleStyle(.switch)
+                .controlSize(.small)
+            }
+
+            // 前台是终端时不提醒
+            HStack(alignment: .top) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("前台是终端时不提醒")
+                        .font(.system(size: 12))
+                    Text("你正盯着终端时不再打断；切走后才提醒")
+                        .font(.system(size: 10))
+                        .foregroundStyle(.tertiary)
+                }
+                Spacer()
+                Toggle("", isOn: Binding(
+                    get: { coordinator.settings.terminalFocusSuppressesNotifications },
+                    set: { coordinator.settings.terminalFocusSuppressesNotifications = $0 }
+                ))
+                .labelsHidden()
+                .toggleStyle(.switch)
+                .controlSize(.small)
+            }
+
+            // “完成通知”延迟确认
+            HStack(alignment: .top) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("完成通知延迟")
+                        .font(.system(size: 12))
+                    Text("等待设定秒数再通知，实际还会叠加 Claude Code 自身的约 30 秒；期间你继续对话则撤销；0 秒为立即通知")
+                        .font(.system(size: 10))
+                        .foregroundStyle(.tertiary)
+                }
+                Spacer()
+                Stepper(
+                    "\(coordinator.settings.stopNotifyDelaySeconds)s",
+                    value: Binding(
+                        get: { coordinator.settings.stopNotifyDelaySeconds },
+                        set: { coordinator.settings.stopNotifyDelaySeconds = $0 }
+                    ),
+                    in: 0...600,
+                    step: 30
+                )
+                .font(.system(size: 11))
+                .fixedSize()
+            }
+
+            // 同一会话的通知去重窗口
+            HStack(alignment: .top) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("通知去重窗口")
+                        .font(.system(size: 12))
+                    Text("同一会话在这段时间内只提醒一次；0 表示不去重")
+                        .font(.system(size: 10))
+                        .foregroundStyle(.tertiary)
+                }
+                Spacer()
+                Stepper(
+                    "\(coordinator.settings.stopNotifyDedupSeconds)s",
+                    value: Binding(
+                        get: { coordinator.settings.stopNotifyDedupSeconds },
+                        set: { coordinator.settings.stopNotifyDedupSeconds = $0 }
+                    ),
+                    in: 0...600,
+                    step: 30
+                )
+                .font(.system(size: 11))
+                .fixedSize()
+            }
+
+            Divider()
+
             // Duration steppers in compact 2-column grid
             if coordinator.settings.floatingNotificationEnabled {
                 LazyVGrid(columns: [
@@ -72,13 +177,15 @@ struct NotificationHistoryView: View {
                             set: { coordinator.settings.stopDuration = $0 }
                         )
                     )
-                    compactDurationStepper(
-                        label: "等待输入",
-                        value: Binding(
-                            get: { coordinator.settings.notificationDuration },
-                            set: { coordinator.settings.notificationDuration = $0 }
+                    if coordinator.settings.idleNotificationEnabled {
+                        compactDurationStepper(
+                            label: "等待输入",
+                            value: Binding(
+                                get: { coordinator.settings.notificationDuration },
+                                set: { coordinator.settings.notificationDuration = $0 }
+                            )
                         )
-                    )
+                    }
                     compactDurationStepper(
                         label: "错误",
                         value: Binding(
